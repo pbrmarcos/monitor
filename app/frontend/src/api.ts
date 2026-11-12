@@ -5,7 +5,13 @@ export type Connection = {port:number; token:string};
 let connection: Connection|null = null;
 export function setConnection(value:Connection){connection=value;}
 export async function connect(){
-  if(isTauri()) { connection=await invoke<Connection>('connection'); return; }
+  if(isTauri()) {
+    connection=await invoke<Connection>('connection');
+    for(let attempt=0;attempt<30;attempt++){
+      try{await api('/health');return;}catch{await new Promise(resolve=>setTimeout(resolve,100));}
+    }
+    throw new Error('O backend está iniciando. Tente conectar novamente.');
+  }
   throw new Error('Abra o aplicativo desktop. A prévia de navegador não se conecta ao banco real.');
 }
 export async function api<T>(path:string, method='GET', body?:unknown):Promise<T>{

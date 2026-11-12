@@ -14,6 +14,7 @@ await page.getByRole('button',{name:'Salvar demanda'}).click();
 await page.locator('nav').getByRole('button',{name:/Demandas/}).click();
 await page.getByText('Demanda criada no teste visual',{exact:true}).click();
 await page.getByRole('button',{name:'Editar demanda',exact:true}).click();
+await page.screenshot({path:'tmp/ui/edit-dialog.png',fullPage:true});
 await page.getByLabel('Etapa',{exact:true}).selectOption('acompanhar');
 await page.getByLabel(/Data de retorno/).fill('2026-12-15');
 await page.getByRole('button',{name:'Salvar demanda'}).click();

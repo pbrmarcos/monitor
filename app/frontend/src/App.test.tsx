@@ -23,5 +23,8 @@ describe('Monitor interface',()=>{
   await user.type(screen.getByLabelText('Título'),'Retornar proposta');
   expect(screen.getByLabelText(/Data de retorno/)).toBeRequired();
   await user.click(screen.getByText('Salvar demanda'));expect(save).not.toHaveBeenCalled();
+  await user.selectOptions(screen.getByRole('combobox',{name:'Etapa'}),'novo');
+  await user.click(screen.getByText('Salvar demanda'));
+  expect(save).toHaveBeenCalledWith(expect.objectContaining({title:'Retornar proposta',stage:'novo'}));
  });
 });

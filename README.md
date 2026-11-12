@@ -6,6 +6,8 @@ Central de operação pessoal com IA local para reunir demandas, e-mails, acompa
 
 ## Objetivo
 
+![Interface atual em modo de demonstração](docs/images/overview.png)
+
 - Monitorar várias caixas de e-mail e sugerir demandas para revisão.
 - Criar demandas manualmente e acompanhar a próxima ação comercial.
 - Acompanhar disponibilidade dos sites e funcionamento dos formulários.
@@ -48,7 +50,7 @@ Requisitos Windows: Node 22+, Python 3.12, Rust estável, C++ Build Tools e WebV
 
 ```powershell
 python -m venv .venv
-.venv/Scripts/python.exe -m pip install -e 'app/backend[dev]'
+.venv/Scripts/python.exe -m pip install -c app/backend/requirements-dev.lock -e 'app/backend[dev]'
 npm ci
 npm run tauri -- dev
 ```

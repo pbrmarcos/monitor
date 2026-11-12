@@ -4,7 +4,7 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 Set-Location -LiteralPath $projectRoot
 function Invoke-Checked { param([scriptblock]$Action) & $Action; if ($LASTEXITCODE -ne 0) { throw "Comando falhou: $Action" } }
 if (-not $SkipInstall) {
-    Invoke-Checked { & $Python -m pip install -e 'app/backend[dev]' }
+    Invoke-Checked { & $Python -m pip install -c app/backend/requirements-dev.lock -e 'app/backend[dev]' }
     Invoke-Checked { npm.cmd ci }
 }
 Invoke-Checked { & $Python -m pytest app/backend/tests }
