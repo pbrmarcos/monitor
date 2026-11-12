@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod notifications;
 
 use std::{io::{BufRead, BufReader}, process::{Child, Command, Stdio}, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, time::Duration};
 use serde::{Deserialize, Serialize};
@@ -97,7 +98,7 @@ fn main() {
             let quit = MenuItem::with_id(app, "quit", "Sair", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &new, &pause, &quit])?;
             let icon = tauri::image::Image::new_owned(include_bytes!("../icons/tray.rgba").to_vec(), 32, 32);
-            TrayIconBuilder::new().icon(icon).tooltip("Monitor").menu(&menu).on_menu_event(|app, event| match event.id.as_ref() {
+            TrayIconBuilder::with_id("monitor-tray").icon(icon).tooltip("Monitor").menu(&menu).on_menu_event(|app, event| match event.id.as_ref() {
                 "open" => show(app),
                 "new" => { show(app); let _ = app.emit("navigate", "new"); },
                 "quit" => app.exit(0),
@@ -111,6 +112,9 @@ fn main() {
                 }
             }
             if std::env::args().any(|arg| arg == "--minimized") { if let Some(window) = app.get_webview_window("main") { window.hide()?; } }
+            if !std::env::args().any(|arg| arg == "--no-notifications") {
+                notifications::start(app.handle().clone(), state.clone());
+            }
             start_backend(app.handle().clone(), state);
             Ok(())
         })

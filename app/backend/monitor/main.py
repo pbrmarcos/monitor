@@ -21,11 +21,11 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from . import ai, inbox, mail, storage
+from . import ai, inbox, mail, storage, reminders, agenda_api
 from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Event, Setting, Suggestion, as_utc, now
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
-VERSION = '0.2.0-alpha.1'
+VERSION = '0.3.0-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
@@ -91,7 +91,10 @@ def migrate(engine):
             connection.execute(text("ALTER TABLE demand ADD COLUMN origin_ref VARCHAR NOT NULL DEFAULT ''"))
         if 'created_by' not in columns:
             connection.execute(text("ALTER TABLE demand ADD COLUMN created_by VARCHAR NOT NULL DEFAULT 'usuario'"))
-        for version in (1, 2):
+        reminder_columns = {row[1] for row in connection.execute(text('PRAGMA table_info(reminder)'))}
+        if 'revision' not in reminder_columns:
+            connection.execute(text('ALTER TABLE reminder ADD COLUMN revision INTEGER NOT NULL DEFAULT 0'))
+        for version in (1, 2, 3):
             connection.execute(text('INSERT OR IGNORE INTO schema_migrations VALUES (:v)'), {'v': version})
 
 
@@ -194,6 +197,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
             from apscheduler.triggers.interval import IntervalTrigger
             scheduler = BackgroundScheduler(job_defaults={'coalesce': True, 'max_instances': 1, 'misfire_grace_time': 60})
             start = datetime.now() + timedelta(seconds=8)
+            scheduler.add_job(lambda: reminders.generate(engine, demo=demo), IntervalTrigger(seconds=10), next_run_time=start)
             if not demo:
                 scheduler.add_job(lambda: inbox.sync_all(engine, vault, connector), IntervalTrigger(minutes=2), next_run_time=start)
                 scheduler.add_job(lambda: inbox.process_queue(engine), IntervalTrigger(seconds=20), next_run_time=start)
@@ -209,6 +213,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     app.state.token = session_token
     app.state.engine = engine
     app.state.vault = vault
+    app.include_router(agenda_api.router(engine, session, demo))
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, error):
@@ -261,6 +266,12 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
             description = f'Etapa: {previous_stage} → {item.stage}.' if 'stage' in changes else 'Dados da demanda atualizados.'
             db.add(Event(demand_id=identifier, description=description))
         db.add(item)
+        if item.stage in ('ganho', 'perdido'):
+            from .models import Reminder
+            for reminder in db.exec(select(Reminder).where(Reminder.demand_id == identifier, Reminder.status.in_(('pendente', 'disparado')))).all():
+                reminder.status = 'concluido'
+                reminders.withdraw_notices(db, reminder.id)
+                db.add(reminder)
         db.commit()
         db.refresh(item)
         return item
@@ -272,6 +283,12 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
             raise HTTPException(404, 'Demanda não encontrada.')
         for event in db.exec(select(Event).where(Event.demand_id == identifier)).all():
             db.delete(event)
+        from .models import Reminder
+        for reminder in db.exec(select(Reminder).where(Reminder.demand_id == identifier)).all():
+            reminder.status = 'cancelado'
+            reminder.demand_id = None
+            reminders.withdraw_notices(db, reminder.id)
+            db.add(reminder)
         db.delete(item)
         db.commit()
 

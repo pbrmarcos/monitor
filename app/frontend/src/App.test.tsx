@@ -11,7 +11,7 @@ HTMLDialogElement.prototype.close = function () {
   this.open = false;
 };
 describe("Monitor interface", () => {
-  it("navigates through all eight screens and filters demo demands", async () => {
+  it("navigates through all screens and filters demo demands", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByText("Explorar demonstração"));
@@ -22,6 +22,7 @@ describe("Monitor interface", () => {
     ).not.toBeInTheDocument();
     for (const name of [
       "Demandas",
+      "Lembretes",
       "E-mails",
       "Sites",
       "Redes sociais",
@@ -36,6 +37,30 @@ describe("Monitor interface", () => {
       await user.click(navButton);
       expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
     }
+  });
+  it("creates and completes a reminder in the preview without native notifications", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByText("Explorar demonstração"));
+    await user.click(
+      screen.getByRole("button", { name: "Lembretes", exact: true }),
+    );
+    await user.type(
+      screen.getByLabelText("O que lembrar?"),
+      "Retornar orçamento",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Criar lembrete", exact: true }),
+    );
+    expect(await screen.findByText("Retornar orçamento")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Concluir", exact: true }),
+    );
+    expect(screen.queryByText("Retornar orçamento")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Ver histórico", exact: true }),
+    );
+    expect(await screen.findByText("Retornar orçamento")).toBeInTheDocument();
   });
   it("requires follow-up date and submits explicit user input", async () => {
     const user = userEvent.setup(),

@@ -117,3 +117,27 @@ class Suggestion(SQLModel, table=True):
     status: str = Field(default='pendente', index=True)
     demand_id: int | None = None
     created_at: datetime = Field(default_factory=now)
+
+
+class Reminder(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    text: str
+    when: datetime = Field(index=True)
+    demand_id: int | None = Field(default=None, index=True)
+    status: str = Field(default='pendente', index=True)
+    origin_key: str | None = Field(default=None, unique=True)
+    revision: int = 0
+    created_at: datetime = Field(default_factory=now)
+
+
+class Notice(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    key: str = Field(unique=True)
+    kind: str
+    title: str
+    body: str
+    reminder_id: int | None = None
+    demand_id: int | None = None
+    read: bool = False
+    desktop_status: str = Field(default='pendente', index=True)
+    created_at: datetime = Field(default_factory=now)

@@ -1248,6 +1248,20 @@ dialog.modal::backdrop,
   font-size: var(--text-caption);
 }
 
+.agenda-form {
+  display: grid;
+  gap: var(--s4);
+}
+.agenda-form label:not(.check) {
+  display: grid;
+  gap: var(--s2);
+}
+.agenda-row {
+  flex-wrap: wrap;
+}
+.agenda-row .row-body p {
+  margin-top: var(--s2);
+}
 /* Telas largas: mais ar, mesmos tamanhos de texto */
 @media (min-width: 1800px) {
   .main {

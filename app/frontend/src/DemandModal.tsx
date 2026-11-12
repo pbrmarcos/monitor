@@ -172,6 +172,7 @@ export function DemandSheet({
   onEdit,
   onAdvance,
   onRemove,
+  onRemind,
 }: {
   demand: Demand;
   history: HistoryEvent[];
@@ -180,6 +181,7 @@ export function DemandSheet({
   onEdit: () => void;
   onAdvance: () => void;
   onRemove: () => void;
+  onRemind: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   useEffect(() => {
@@ -246,6 +248,7 @@ export function DemandSheet({
             Próxima etapa
             <ArrowRight size={16} />
           </button>
+          <button disabled={isClosed(demand)} onClick={onRemind}>Criar lembrete</button>
         </div>
         <div className="history">
           <h3>Histórico</h3>

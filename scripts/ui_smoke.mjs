@@ -49,6 +49,7 @@ await page.getByRole("button", { name: "Marcar importante" }).click();
 await page.getByRole("tab", { name: /Todos/ }).click();
 await shot("emails");
 for (const name of [
+  "Lembretes",
   "Sites",
   "Redes sociais",
   "Arquivos",
@@ -67,6 +68,6 @@ await page.setViewportSize({ width: 820, height: 1000 });
 await shot("compact");
 if (errors.length) throw new Error(errors.join("\n"));
 console.log(
-  "UI smoke: sugestão, criação, edição, e-mails, oito telas e três larguras OK",
+  "UI smoke: sugestão, criação, edição, e-mails, agenda, navegação e três larguras OK",
 );
 await browser.close();

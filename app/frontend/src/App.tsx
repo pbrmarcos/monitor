@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Activity,
+  Bell,
   CircleAlert,
   Folder,
   Globe,
@@ -21,12 +22,25 @@ import { Emails } from "./pages/Emails";
 import { AssistantHeader, Chat, Files, Sites, Social } from "./pages/Other";
 import { Overview } from "./pages/Overview";
 import { SettingsPage } from "./pages/SettingsPage";
-import { HistoryEvent, isClosed, newDemand, Page, useMonitor } from "./store";
+import { Reminders } from "./pages/Reminders";
+import {
+  HistoryEvent,
+  isClosed,
+  newDemand,
+  Page,
+  pages,
+  useMonitor,
+} from "./store";
 import { Callout } from "./ui";
 
 export { DemandModal };
 
 const nav: Record<Page, { icon: typeof Mail; title: string; lead: string }> = {
+  Lembretes: {
+    icon: Bell,
+    title: "Seu próximo passo, na hora certa.",
+    lead: "Lembretes, avisos e o resumo diário das suas frentes.",
+  },
   "Visão geral": {
     icon: LayoutDashboard,
     title: "Tudo sob controle.",
@@ -69,6 +83,7 @@ const nav: Record<Page, { icon: typeof Mail; title: string; lead: string }> = {
   },
 };
 const withFronts: Page[] = [
+  "Lembretes",
   "Visão geral",
   "Demandas",
   "E-mails",
@@ -109,7 +124,7 @@ export default function App() {
         </a>
         <span className="eyebrow">Espaço de trabalho</span>
         <nav aria-label="Seções">
-          {(Object.keys(nav) as Page[]).map((label) => {
+          {pages.map((label) => {
             const Icon = nav[label].icon;
             const count =
               label === "Demandas"
@@ -257,6 +272,7 @@ export default function App() {
               )}
               {m.page === "Visão geral" && <Overview m={m} />}
               {m.page === "Demandas" && <Demands m={m} />}
+              {m.page === "Lembretes" && <Reminders m={m} />}
               {m.page === "E-mails" && <Emails m={m} />}
               {m.page === "Sites" && <Sites m={m} />}
               {m.page === "Redes sociais" && <Social m={m} />}
@@ -311,6 +327,11 @@ export default function App() {
             if (next) m.moveDemand(m.detail!, next);
           }}
           onRemove={() => void m.removeDemand(m.detail!)}
+          onRemind={() => {
+            m.setReminderTarget(m.detail!.id);
+            m.setDetail(null);
+            m.setPage("Lembretes");
+          }}
         />
       )}
     </div>

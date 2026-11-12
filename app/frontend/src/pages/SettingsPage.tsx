@@ -48,6 +48,15 @@ export function SettingsPage({ m }: { m: Monitor }) {
       <Accounts m={m} />
       <LocalAi m={m} />
       <Rules m={m} />
+      <Panel title="Lembretes e resumo diário">
+        <div className="panel-body">
+          <p>
+            Defina horários, consulte os avisos e escolha se os detalhes
+            aparecem nas notificações do Windows.
+          </p>
+          <button onClick={() => m.setPage("Lembretes")}>Abrir agenda</button>
+        </div>
+      </Panel>
       <Application />
     </div>
   );
@@ -580,7 +589,6 @@ function Application() {
         <hr />
         <h3>Próximas integrações</h3>
         {[
-          "Lembretes e resumo diário",
           "Sites e formulários",
           "Catálogo de arquivos do OneDrive",
           "Assistente com consulta aos seus dados",

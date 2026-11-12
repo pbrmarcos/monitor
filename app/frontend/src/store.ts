@@ -18,6 +18,7 @@ import { demoDemands, demoEmails, demoSuggestions, today } from "./demo";
 export const pages = [
   "Visão geral",
   "Demandas",
+  "Lembretes",
   "E-mails",
   "Sites",
   "Redes sociais",
@@ -69,6 +70,7 @@ export function useMonitor() {
   });
   const [editing, setEditing] = useState<Partial<Demand> | null>(null);
   const [detail, setDetail] = useState<Demand | null>(null);
+  const [reminderTarget, setReminderTarget] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   const fail = (e: unknown) => setError((e as Error).message);
@@ -122,6 +124,27 @@ export function useMonitor() {
         else setPage("Visão geral");
       }).then(keep);
       listen("backend-ready", () => void load()).then(keep);
+      listen<{ id: number | null; demand_id: number | null }>(
+        "notification-open",
+        (event) => {
+          setPage("Lembretes");
+          setFront(0);
+          if (event.payload.id)
+            void api(`/notifications/${event.payload.id}/read`, "POST").catch(
+              () => {},
+            );
+          if (event.payload.demand_id)
+            void api<Demand[]>("/demands")
+              .then((items) => {
+                setDemands(items);
+                const demand = items.find(
+                  (d) => d.id === event.payload.demand_id,
+                );
+                if (demand) setDetail(demand);
+              })
+              .catch(() => {});
+        },
+      ).then(keep);
     }
     return () => {
       disposed = true;
@@ -360,6 +383,8 @@ export function useMonitor() {
     editing,
     setEditing,
     detail,
+    reminderTarget,
+    setReminderTarget,
     setDetail,
     saving,
     saveDemand,

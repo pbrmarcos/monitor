@@ -62,6 +62,43 @@ try {
     .getByText("Demanda criada pelo usuário.", { exact: false })
     .waitFor();
   await page.getByRole("button", { name: "Fechar detalhes" }).click();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Lembretes", exact: true })
+    .click();
+  await page
+    .getByLabel("O que lembrar?")
+    .fill("Lembrete persistido na integração");
+  const earlier = new Date(Date.now() - 60000);
+  await page
+    .getByLabel("Data e hora", { exact: true })
+    .fill(
+      new Date(earlier.getTime() - earlier.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16),
+    );
+  await page
+    .getByRole("button", { name: "Criar lembrete", exact: true })
+    .click();
+  await page
+    .getByText("Lembrete persistido na integração", { exact: true })
+    .waitFor();
+  // Real production scheduler, not a manual invocation of the reminder service.
+  await page
+    .getByText("Você tem um lembrete", { exact: true })
+    .waitFor({ timeout: 35000 });
+  await page.reload();
+  await page.getByText("Backend local conectado").waitFor();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Lembretes", exact: true })
+    .click();
+  await page.getByText("Você tem um lembrete", { exact: true }).waitFor();
+  await page.screenshot({
+    path: "tmp/ui/reminders-connected.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Concluir", exact: true }).click();
   // Pasta de arquivos: grava a estrutura e um backup consistente do banco.
   await page
     .locator("nav")
@@ -91,7 +128,7 @@ try {
     fullPage: true,
   });
   console.log(
-    "Integration: real API + SQLite, create, reload persistence, audit history, files folder and backup OK",
+    "Integration: real API + SQLite, demands, durable reminders, production scheduler, inbox, files folder and backup OK",
   );
 } finally {
   await browser?.close();

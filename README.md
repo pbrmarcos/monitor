@@ -2,7 +2,7 @@
 
 Central de operação pessoal com IA local para reunir demandas, e-mails, acompanhamento comercial, sites, redes sociais e arquivos.
 
-**Estado: versão `0.2.0-alpha.1`.** Já funcionam demandas e kanban, coleta de e-mails por IMAP em modo somente leitura, triagem por regras e IA local, sugestões de demanda, pasta de arquivos com backup diário e exportação. Sites, redes sociais, catálogo de arquivos e chat ainda são demonstrações. Veja o que foi e o que não foi testado em [validação](docs/VALIDATION.md).
+**Estado: versão `0.3.0-alpha.1`.** Demandas, kanban, e-mails IMAP, triagem local, sugestões, pasta de arquivos, backups e exportação. Agora inclui agenda persistente, central de avisos e resumo diário. Sites, redes sociais, catálogo de arquivos e chat ainda são demonstrações. Consulte a [validação](docs/VALIDATION.md).
 
 ## Objetivo
 
@@ -69,9 +69,15 @@ npm run build
 
 O script gera o sidecar com PyInstaller, testa o executável e compila os instaladores NSIS/MSI em `dist/`. O workflow Windows desktop faz o mesmo no GitHub Actions. Os instaladores desta etapa não têm assinatura Authenticode nem atualizador ativo.
 
-Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. O instalador MSI usa a versão interna numérica `0.2.0.1`, correspondente à versão alpha do produto.
+Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. `--no-notifications` desativa a ponte de avisos nativos na sessão de teste. O MSI usa a versão interna numérica `0.3.0.1`.
 
 Ollama é separado do instalador. Em Configurações, verifique a disponibilidade, ajuste o modelo e solicite o download. Sem Ollama, as regras continuam triando os e-mails e as mensagens aguardam na fila da IA.
+
+## Lembretes e resumo diário
+
+A seção **Lembretes** permite criar agendamentos gerais ou vinculados a demandas, concluir, cancelar e adiar. A central registra avisos e o resumo diário. Por padrão, o resumo é gerado às 7h30 em dias úteis no fuso America/Sao_Paulo e não depende do Ollama. Horário, fuso e privacidade dos avisos são configuráveis.
+
+O aplicativo precisa estar aberto ou na bandeja. Com o computador desligado não há avisos; agendamentos atrasados são recuperados ao abrir novamente. A criação automática a partir de prazos explícitos nos e-mails começa desativada. Veja [como funciona a agenda](docs/AGENDA.md).
 
 ## Pasta de arquivos
 
