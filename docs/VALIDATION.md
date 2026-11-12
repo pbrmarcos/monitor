@@ -1,6 +1,14 @@
 # Validação
 
-Situação em 12/11/2026, versão `0.5.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 12/11/2026, versão `0.5.1-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Altura das mensagens do assistente (0.5.1-alpha.1)
+
+As mensagens da IA usavam a classe `assistant`, compartilhada com o painel lateral de altura `100vh`. As classes dos balões agora têm o prefixo `message-`, preservando a altura definida pelo conteúdo e o alinhamento das mensagens do usuário.
+
+TypeScript/Vite e a verificação visual passaram. O smoke test mediu a altura dos balões em relação ao texto, nas larguras 820, 1600 e 2560, tanto na visão geral quanto na tela Assistente, além da navegação habitual. A verificação usa a resposta de demonstração; a correção é no layout compartilhado, sem alterar a chamada à IA.
+
+O [build Windows de 63cc702](https://github.com/pbrmarcos/monitor/actions/runs/43286144318) passou com os testes, sidecar, scheduler, frontend, Rust, dois instaladores e assinaturas do atualizador. Os pacotes da release 0.5.1 vêm dessa execução; a instalação efetiva pelo botão continua pendente de validação manual no Windows.
 
 ## Assistente, Google Agenda e ajustes de uso (0.5.0-alpha.1)
 
