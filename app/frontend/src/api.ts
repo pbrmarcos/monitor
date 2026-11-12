@@ -162,6 +162,7 @@ export type Preferences = {
   tagline: string;
   avatar: string;
   fronts: string[];
+  front_icons: string[];
   primary: string;
   accent: string;
 };

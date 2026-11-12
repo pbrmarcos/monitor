@@ -2,7 +2,7 @@
 
 Central de operação pessoal com IA local para reunir demandas, e-mails, acompanhamento comercial, sites, redes sociais e arquivos.
 
-**Estado: versão `0.5.1-alpha.1`.** Demandas, kanban, e-mails IMAP, triagem local, sugestões, pasta de arquivos, backups, exportação, agenda e central de avisos. Agora inclui checagens dos sites e fila de formulários com relay para VPS. O assistente conversa com o modelo local sobre os seus dados e as demandas com data podem ir para o [Google Agenda](docs/AGENDA-GOOGLE.md). Perfis do [Instagram](docs/REDES-SOCIAIS.md) aparecem em cartões com os números da semana; perfil, frentes e cores são personalizáveis e o aplicativo [se atualiza](docs/ATUALIZACOES.md) por um botão. WhatsApp e catálogo de arquivos ainda não foram entregues. Consulte a [validação](docs/VALIDATION.md).
+**Estado: versão `0.5.2-alpha.1`.** Demandas, kanban, e-mails IMAP, triagem local, sugestões, pasta de arquivos, backups, exportação, agenda e central de avisos. Agora inclui checagens dos sites e fila de formulários com relay para VPS. O assistente conversa com o modelo local sobre os seus dados e as demandas com data podem ir para o [Google Agenda](docs/AGENDA-GOOGLE.md). Perfis do [Instagram](docs/REDES-SOCIAIS.md) aparecem em cartões com os números da semana; perfil, frentes e cores são personalizáveis e o aplicativo [se atualiza](docs/ATUALIZACOES.md) por um botão. WhatsApp e catálogo de arquivos ainda não foram entregues. Consulte a [validação](docs/VALIDATION.md).
 
 ## Objetivo
 
@@ -69,7 +69,7 @@ npm run build
 
 O script gera o sidecar com PyInstaller, testa o executável e compila os instaladores NSIS/MSI em `dist/`. O workflow Windows desktop faz o mesmo no GitHub Actions. Os instaladores não têm assinatura Authenticode. As assinaturas próprias do atualizador são geradas no build com a chave guardada no segredo protegido do repositório; elas não removem os avisos do SmartScreen.
 
-Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. `--no-notifications` desativa a ponte de avisos nativos na sessão de teste. O MSI usa a versão interna numérica `0.5.1.1`.
+Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. `--no-notifications` desativa a ponte de avisos nativos na sessão de teste. O MSI usa a versão interna numérica `0.5.2.1`.
 
 Ollama é separado do instalador. Em Configurações, verifique a disponibilidade, ajuste o modelo e solicite o download. Sem Ollama, as regras continuam triando os e-mails e as mensagens aguardam na fila da IA.
 
@@ -80,6 +80,10 @@ A seção **Lembretes** permite criar agendamentos gerais ou vinculados a demand
 ![Agenda com dados de teste](docs/images/reminders.png)
 
 O aplicativo precisa estar aberto ou na bandeja. Com o computador desligado não há avisos; agendamentos atrasados são recuperados ao abrir novamente. A criação automática a partir de prazos explícitos nos e-mails começa desativada. Veja [como funciona a agenda](docs/AGENDA.md).
+
+## Ícones das empresas
+
+Os filtros das frentes exibem o ícone de cada empresa antes do nome. Para enviar seu favicon, abra **Configurações → Personalização → Frentes → Enviar ícone** e salve. PNG, JPG, WebP e ICO de até 5 MB são ajustados sem cortar o desenho; sem imagem, aparecem as iniciais.
 
 ## Sites e formulários
 

@@ -1,6 +1,9 @@
 """Personalização: perfil, nomes das frentes e cores. Tudo fica na tabela de configurações."""
 import json
 import re
+import base64
+import binascii
+import struct
 
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session
@@ -29,6 +32,7 @@ class Preferences(BaseModel):
     tagline: str = Field(default='', max_length=60)
     avatar: str = Field(default='', max_length=200_000)
     fronts: list[str] = Field(min_length=4, max_length=4)
+    front_icons: list[str] | None = Field(default=None, min_length=4, max_length=4)
     primary: str
     accent: str
 
@@ -51,6 +55,31 @@ class Preferences(BaseModel):
         if any(not 1 <= len(name) <= 30 for name in cleaned):
             raise ValueError('Cada frente precisa de um nome com até 30 caracteres.')
         return cleaned
+
+    @field_validator('front_icons')
+    @classmethod
+    def icons(cls, values):
+        if values is None:
+            return values
+        for value in values:
+            if not value:
+                continue
+            if len(value) > 40_000 or not value.startswith('data:image/png;base64,'):
+                raise ValueError('Envie um ícone PNG normalizado pelo aplicativo.')
+            try:
+                image = base64.b64decode(value.split(',', 1)[1], validate=True)
+                if len(image) < 45 or image[:16] != b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR':
+                    raise ValueError()
+                width, height = struct.unpack('>II', image[16:24])
+                if not (1 <= width <= 128 and 1 <= height <= 128):
+                    raise ValueError()
+                if binascii.crc32(image[12:29]) != struct.unpack('>I', image[29:33])[0]:
+                    raise ValueError()
+                if not image.endswith(b'\x00\x00\x00\x00IEND\xaeB\x60\x82'):
+                    raise ValueError()
+            except (ValueError, binascii.Error, struct.error):
+                raise ValueError('O ícone precisa ser uma imagem PNG válida de até 128 pixels.') from None
+        return values
 
     @field_validator('primary', 'accent')
     @classmethod
@@ -85,12 +114,15 @@ def front_names(db: Session) -> dict[int, str]:
 def read(db: Session) -> dict:
     profile = {**DEFAULT_PROFILE, **_load(db, 'profile', {})}
     theme = {**DEFAULT_THEME, **_load(db, 'theme', {})}
-    return {**profile, 'fronts': list(front_names(db).values()), **theme}
+    return {**profile, 'fronts': list(front_names(db).values()),
+            'front_icons': _load(db, 'front_icons', ['', '', '', '']), **theme}
 
 
 def save(db: Session, payload: Preferences) -> dict:
     db.merge(Setting(key='profile', value=json.dumps({'name': payload.name, 'tagline': payload.tagline, 'avatar': payload.avatar})))
     db.merge(Setting(key='front_names', value=json.dumps(payload.fronts, ensure_ascii=False)))
+    if payload.front_icons is not None:
+        db.merge(Setting(key='front_icons', value=json.dumps(payload.front_icons)))
     db.merge(Setting(key='theme', value=json.dumps({'primary': payload.primary, 'accent': payload.accent})))
     db.commit()
     return read(db)

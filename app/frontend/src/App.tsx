@@ -33,7 +33,7 @@ import {
   pages,
   useMonitor,
 } from "./store";
-import { Avatar, Callout, frontLabel } from "./ui";
+import { Avatar, Callout, FrontIcon, frontLabel } from "./ui";
 
 export { DemandModal };
 
@@ -252,6 +252,12 @@ export default function App() {
                         aria-pressed={m.front === n}
                         onClick={() => m.setFront(n)}
                       >
+                        {n > 0 && (
+                          <FrontIcon
+                            src={m.prefs.front_icons[n - 1]}
+                            name={frontLabel(n)}
+                          />
+                        )}
                         {n === 0 ? "Todas as frentes" : frontLabel(n)}
                       </button>
                     ))}

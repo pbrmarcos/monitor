@@ -64,7 +64,10 @@ try {
     .then((r) => r.json())
     .then((data) => data.models.map((item) => item.name))
     .catch(() => []);
-  if (models.includes("qwen3.5:4b-q4_K_M")) {
+  if (
+    !process.env.MONITOR_SKIP_CHAT_SMOKE &&
+    models.includes("qwen3.5:4b-q4_K_M")
+  ) {
     await page
       .getByLabel("Mensagem para o assistente")
       .fill("Quais demandas estão abertas?");
@@ -80,7 +83,7 @@ try {
     if (!/integração/i.test(text))
       throw new Error(`Resposta sem a demanda criada: ${text}`);
     console.log(`Chat com o modelo local: ${text.replace(/\s+/g, " ")}`);
-  } else console.log("Chat não testado: modelo local indisponível");
+  } else console.log("Chat não testado nesta execução");
   // Personalização: nome da frente, perfil e cores persistem após recarregar.
   await page
     .locator("nav")
@@ -88,15 +91,111 @@ try {
     .click();
   await page.getByLabel("Frente 2", { exact: true }).fill("Loja Teste");
   await page.getByLabel("Nome", { exact: true }).fill("Marcos Teste");
+  const imageData = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 32;
+    canvas.height = 16;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#0D213A";
+    ctx.fillRect(0, 0, 32, 16);
+    const png = canvas.toDataURL("image/png").split(",")[1];
+    canvas.height = 32;
+    ctx.fillStyle = "#14342B";
+    ctx.fillRect(0, 0, 32, 32);
+    return { png, square: canvas.toDataURL("image/png").split(",")[1] };
+  });
+  await page
+    .getByLabel("Arquivo do ícone da frente 1", { exact: true })
+    .setInputFiles({
+      name: "rocha.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(imageData.png, "base64"),
+    });
+  await page
+    .locator(".front-editor")
+    .nth(0)
+    .locator(".front-icon img")
+    .waitFor();
+  const iconPng = Buffer.from(imageData.square, "base64");
+  const icoHeader = Buffer.alloc(22);
+  icoHeader.writeUInt16LE(1, 2);
+  icoHeader.writeUInt16LE(1, 4);
+  icoHeader[6] = 32;
+  icoHeader[7] = 32;
+  icoHeader.writeUInt16LE(1, 10);
+  icoHeader.writeUInt16LE(32, 12);
+  icoHeader.writeUInt32LE(iconPng.length, 14);
+  icoHeader.writeUInt32LE(22, 18);
+  await page
+    .getByLabel("Arquivo do ícone da frente 2", { exact: true })
+    .setInputFiles({
+      name: "nextlink.ico",
+      mimeType: "image/x-icon",
+      buffer: Buffer.concat([icoHeader, iconPng]),
+    });
+  await page
+    .locator(".front-editor")
+    .nth(1)
+    .locator(".front-icon img")
+    .waitFor();
   await page.getByRole("button", { name: "Floresta" }).click();
   await page.getByRole("button", { name: "Salvar personalização" }).click();
   await page.getByText("Personalização salva.", { exact: true }).waitFor();
   await page.reload();
   await page.getByText("Backend local conectado").waitFor();
   await page.getByRole("button", { name: "Loja Teste", exact: true }).waitFor();
+  const filters = page.getByRole("group", { name: "Filtrar por frente" });
+  if (
+    (await filters.locator(".front-icon").count()) !== 4 ||
+    (await filters.locator(".front-icon img").count()) !== 2
+  )
+    throw new Error(
+      "Ícones das quatro frentes e os dois uploads precisam persistir",
+    );
+  const normal = await filters
+    .getByRole("button", { name: "Rocha Comercial", exact: true })
+    .locator("img")
+    .evaluate(async (image) => {
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 64;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(image, 0, 0);
+      return {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        alpha: ctx.getImageData(32, 0, 1, 1).data[3],
+      };
+    });
+  if (normal.width !== 64 || normal.height !== 64 || normal.alpha !== 0)
+    throw new Error(
+      `Ícone deve manter proporção e transparência: ${JSON.stringify(normal)}`,
+    );
+  for (const name of [
+    "Demandas",
+    "Lembretes",
+    "E-mails",
+    "Sites",
+    "Redes sociais",
+    "Arquivos",
+    "Visão geral",
+  ]) {
+    await page
+      .locator("nav")
+      .getByRole("button", { name, exact: true })
+      .click();
+    await page
+      .getByRole("group", { name: "Filtrar por frente" })
+      .getByRole("button", { name: "Loja Teste", exact: true })
+      .locator("img")
+      .waitFor();
+  }
+  await page.screenshot({ path: "tmp/ui/company-icons.png", fullPage: true });
   await page.locator(".sidebar-foot").getByText("Marcos Teste").waitFor();
   const primary = await page.evaluate(() =>
-    getComputedStyle(document.documentElement).getPropertyValue("--navy").trim(),
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--navy")
+      .trim(),
   );
   if (primary.toUpperCase() !== "#14342B")
     throw new Error(`Cor principal não aplicada: ${primary}`);

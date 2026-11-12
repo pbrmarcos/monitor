@@ -4,7 +4,58 @@ import { isTauri } from "@tauri-apps/api/core";
 import { api, Preferences } from "../api";
 import { defaultPrefs, type Monitor } from "../store";
 import { applyTheme, presets, primaryOk, valid } from "../theme";
-import { Avatar, Callout, defaultFronts, Panel } from "../ui";
+import { Avatar, Callout, defaultFronts, FrontIcon, Panel } from "../ui";
+
+/** Normaliza o favicon em PNG transparente; também lê arquivos ICO pelo navegador. */
+async function favicon(file: File): Promise<string> {
+  if (file.size > 5_000_000) throw new Error("Escolha um ícone de até 5 MB.");
+  const allowed = [
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/x-icon",
+    "image/vnd.microsoft.icon",
+  ];
+  if (
+    !allowed.includes(file.type) &&
+    !(
+      /\.ico$/i.test(file.name) &&
+      ["", "application/octet-stream"].includes(file.type)
+    )
+  ) {
+    throw new Error("Use um arquivo PNG, JPG, WebP ou ICO.");
+  }
+  // data: é permitido pela política de imagens do desktop; blob: não é.
+  const source = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      typeof reader.result === "string"
+        ? resolve(reader.result)
+        : reject(new Error("Não foi possível ler o ícone."));
+    reader.onerror = () => reject(new Error("Não foi possível ler o ícone."));
+    reader.readAsDataURL(file);
+  });
+  const image = new Image();
+  image.src = source;
+  try {
+    await image.decode();
+  } catch {
+    throw new Error(
+      "Não foi possível ler este ícone. Use PNG, JPG, WebP ou ICO.",
+    );
+  }
+  if (!image.naturalWidth || !image.naturalHeight)
+    throw new Error("Imagem vazia.");
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const scale = 64 / Math.max(image.naturalWidth, image.naturalHeight);
+  const width = image.naturalWidth * scale,
+    height = image.naturalHeight * scale;
+  canvas
+    .getContext("2d")!
+    .drawImage(image, (64 - width) / 2, (64 - height) / 2, width, height);
+  return canvas.toDataURL("image/png");
+}
 
 /** Reduz a foto para 128 px e devolve como data URI. */
 async function shrink(file: File): Promise<string> {
@@ -32,6 +83,8 @@ export function Personalization({ m }: { m: Monitor }) {
   const [draft, setDraft] = useState<Preferences>(m.prefs);
   const [saving, setSaving] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
+  const iconPickers = useRef<(HTMLInputElement | null)[]>([]);
+  const [iconBusy, setIconBusy] = useState<number | null>(null);
   const saved = useRef(m.prefs);
   useEffect(() => {
     saved.current = m.prefs;
@@ -124,25 +177,91 @@ export function Personalization({ m }: { m: Monitor }) {
         <section>
           <h3>Frentes</h3>
           <p>
-            O nome de cada empresa ou projeto. Aparece nos filtros, nas
-            demandas, nos e-mails e nos eventos da agenda.
+            Nomes e ícones das empresas. Envie um favicon PNG, JPG, WebP ou ICO
+            para aparecer antes do nome em todas as abas de filtro. Até 5 MB; o
+            ícone é ajustado sem cortar a imagem e mantém a transparência.
           </p>
           {draft.fronts.map((name, i) => (
-            <label className="field" key={i}>
-              Frente {i + 1}
-              <input
-                value={name}
-                maxLength={30}
-                disabled={locked}
-                onChange={(e) =>
-                  set({
-                    fronts: draft.fronts.map((old, j) =>
-                      j === i ? e.target.value : old,
-                    ),
-                  })
-                }
-              />
-            </label>
+            <div className="front-editor" key={i}>
+              <FrontIcon src={draft.front_icons[i]} name={name} large />
+              <label className="field">
+                Frente {i + 1}
+                <input
+                  value={name}
+                  maxLength={30}
+                  disabled={locked}
+                  onChange={(e) =>
+                    set({
+                      fronts: draft.fronts.map((old, j) =>
+                        j === i ? e.target.value : old,
+                      ),
+                    })
+                  }
+                />
+              </label>
+              <div className="button-row">
+                <button
+                  className="sm"
+                  disabled={locked || saving || iconBusy !== null}
+                  aria-label={`Enviar ícone da frente ${i + 1}`}
+                  onClick={() => iconPickers.current[i]?.click()}
+                >
+                  <Upload size={16} />
+                  {iconBusy === i
+                    ? "Preparando…"
+                    : draft.front_icons[i]
+                      ? "Trocar ícone"
+                      : "Enviar ícone"}
+                </button>
+                {draft.front_icons[i] && (
+                  <button
+                    className="sm ghost"
+                    disabled={locked || saving || iconBusy !== null}
+                    aria-label={`Remover ícone da frente ${i + 1}`}
+                    onClick={() =>
+                      set({
+                        front_icons: draft.front_icons.map((icon, j) =>
+                          j === i ? "" : icon,
+                        ),
+                      })
+                    }
+                  >
+                    Remover
+                  </button>
+                )}
+                <input
+                  ref={(element) => {
+                    iconPickers.current[i] = element;
+                  }}
+                  type="file"
+                  hidden
+                  aria-label={`Arquivo do ícone da frente ${i + 1}`}
+                  accept="image/png,image/jpeg,image/webp,image/x-icon,image/vnd.microsoft.icon,.ico"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file) return;
+                    setIconBusy(i);
+                    try {
+                      const icon = await favicon(file);
+                      set({
+                        front_icons: draft.front_icons.map((old, j) =>
+                          j === i ? icon : old,
+                        ),
+                      });
+                    } catch (error) {
+                      m.setError(
+                        error instanceof Error
+                          ? error.message
+                          : "Não foi possível ler este ícone.",
+                      );
+                    } finally {
+                      setIconBusy(null);
+                    }
+                  }}
+                />
+              </div>
+            </div>
           ))}
         </section>
         <section>
@@ -190,8 +309,8 @@ export function Personalization({ m }: { m: Monitor }) {
           </div>
           {!primaryOk(draft.primary) && (
             <Callout tone="error" role="alert">
-              Escolha uma cor principal mais escura. Ela também é a cor do
-              texto e precisa continuar legível.
+              Escolha uma cor principal mais escura. Ela também é a cor do texto
+              e precisa continuar legível.
             </Callout>
           )}
           <p>
@@ -202,13 +321,15 @@ export function Personalization({ m }: { m: Monitor }) {
         <div className="button-row personal-actions">
           <button
             className="primary"
-            disabled={locked || saving || !changed || !complete}
+            disabled={
+              locked || saving || iconBusy !== null || !changed || !complete
+            }
             onClick={() => void save()}
           >
             Salvar personalização
           </button>
           <button
-            disabled={locked || saving}
+            disabled={locked || saving || iconBusy !== null}
             onClick={() =>
               set({
                 fronts: [...defaultFronts],

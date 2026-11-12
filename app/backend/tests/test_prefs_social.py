@@ -1,4 +1,7 @@
 import json
+import base64
+import struct
+import zlib
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
@@ -8,6 +11,7 @@ from sqlmodel import Session
 
 from monitor import social
 from monitor.main import create_app
+from monitor.secrets_store import MemoryStore
 from monitor.models import SocialSnapshot
 
 HEADERS = {'Authorization': 'Bearer session'}
@@ -15,8 +19,35 @@ TOKEN = 'IGAAtoken_de_teste_1234567890'
 PNG = 'data:image/png;base64,iVBORw0KGgo='
 
 
+def favicon_png(width=2, height=1):
+    def chunk(kind, data):
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+    header = struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0)
+    image = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', header) + chunk(b'IDAT', zlib.compress(b'\0' + b'\x10\x20\x30\xff' * 2)) + chunk(b'IEND', b'')
+    return 'data:image/png;base64,' + base64.b64encode(image).decode()
+
+
+def test_company_icons_persist_remove_and_keep_legacy_preferences(tmp_path):
+    icon = favicon_png()
+    with TestClient(create_app(tmp_path, 'session', False, secret_store=MemoryStore()), headers=HEADERS) as api:
+        initial = api.get('/preferences').json()
+        assert initial['front_icons'] == ['', '', '', '']
+        wanted = {**initial, 'front_icons': [icon, '', '', icon]}
+        assert api.put('/preferences', json=wanted).json()['front_icons'] == wanted['front_icons']
+        legacy = {key: value for key, value in wanted.items() if key != 'front_icons'}
+        assert api.put('/preferences', json=legacy).json()['front_icons'] == wanted['front_icons']
+        for icons in ([icon] * 3, ['data:image/svg+xml;base64,PHN2Zz4='] * 4,
+                      ['data:image/png;base64,!!!!'] * 4, [PNG] * 4,
+                      [favicon_png(4096)] * 4, ['data:image/png;base64,' + 'A' * 40_001] * 4):
+            assert api.put('/preferences', json={**wanted, 'front_icons': icons}).status_code == 422
+        assert api.get('/preferences').json()['front_icons'] == wanted['front_icons']
+    with TestClient(create_app(tmp_path, 'session', False, secret_store=MemoryStore()), headers=HEADERS) as api:
+        assert api.get('/preferences').json()['front_icons'] == wanted['front_icons']
+        assert api.put('/preferences', json={**wanted, 'front_icons': ['', '', '', '']}).json()['front_icons'] == ['', '', '', '']
+
+
 def test_preferences_rename_fronts_and_validate_colors(tmp_path):
-    with TestClient(create_app(tmp_path, 'session', False), headers=HEADERS) as api:
+    with TestClient(create_app(tmp_path, 'session', False, secret_store=MemoryStore()), headers=HEADERS) as api:
         initial = api.get('/preferences').json()
         assert initial['fronts'] == ['Rocha Comercial', 'Nextlink', 'Carteira Pronta', 'WebQ']
         assert initial['primary'] == '#0D213A' and initial['name'] == 'Marcos'
@@ -39,7 +70,7 @@ def test_renamed_front_reaches_the_assistant_context(tmp_path, monkeypatch):
         return httpx.Response(200, text=json.dumps({'message': {'content': 'ok'}}))
 
     monkeypatch.setattr('monitor.assistant.httpx.Client', lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw))
-    with TestClient(create_app(tmp_path, 'session', False), headers=HEADERS) as api:
+    with TestClient(create_app(tmp_path, 'session', False, secret_store=MemoryStore()), headers=HEADERS) as api:
         current = api.get('/preferences').json()
         api.put('/preferences', json={**current, 'fronts': ['Rocha', 'Loja Nova', 'Carteira', 'WebQ']})
         api.post('/demands', json={'title': 'Proposta', 'front_id': 2})
@@ -87,7 +118,7 @@ def instagram(monkeypatch):
 
 
 def test_instagram_profile_collects_weekly_numbers(tmp_path, instagram):
-    with TestClient(create_app(tmp_path, 'session', False), headers=HEADERS) as api:
+    with TestClient(create_app(tmp_path, 'session', False, secret_store=MemoryStore()), headers=HEADERS) as api:
         assert api.post('/social', json={'front_id': 1, 'token': 'IGAAtoken_errado_1234567890'}).status_code == 400
         assert api.get('/social').json() == []
         profile = api.post('/social', json={'front_id': 1, 'token': TOKEN}).json()

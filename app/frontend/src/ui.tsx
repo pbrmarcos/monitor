@@ -25,6 +25,22 @@ const initials = (name: string) =>
     .slice(0, 2)
     .map((part) => part[0].toUpperCase())
     .join("") || "?";
+export function FrontIcon({
+  src,
+  name,
+  large = false,
+}: {
+  src?: string;
+  name: string;
+  large?: boolean;
+}) {
+  return (
+    <span className={`front-icon${large ? " lg" : ""}`} aria-hidden>
+      {src ? <img src={src} alt="" /> : initials(name)}
+    </span>
+  );
+}
+
 export function Avatar({
   src,
   name,

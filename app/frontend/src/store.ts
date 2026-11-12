@@ -48,6 +48,7 @@ export const defaultPrefs: Preferences = {
   tagline: "Seu espaço pessoal",
   avatar: "",
   fronts: defaultFronts,
+  front_icons: ["", "", "", ""],
   ...defaultTheme,
 };
 
@@ -96,7 +97,7 @@ export function useMonitor() {
   const usePrefs = (value: Preferences) => {
     setFrontNames(value.fronts);
     applyTheme(value);
-    setPrefs(value);
+    setPrefs({ ...value, front_icons: value.front_icons ?? ["", "", "", ""] });
   };
 
   const fail = (e: unknown) => setError((e as Error).message);
@@ -135,7 +136,9 @@ export function useMonitor() {
         api<Storage>("/storage"),
         refreshInbox(),
       ]);
-      setSocial(health.demo ? demoSocial : await api<SocialProfile[]>("/social"));
+      setSocial(
+        health.demo ? demoSocial : await api<SocialProfile[]>("/social"),
+      );
       setSettings(saved);
       setOllama(local);
       setStorage(folder);
