@@ -20,5 +20,10 @@ New-Item -ItemType Directory -Force dist/portable | Out-Null
 Copy-Item -LiteralPath 'app/desktop/src-tauri/target/release/monitor.exe' -Destination dist/portable -Force
 Copy-Item -LiteralPath 'app/desktop/src-tauri/binaries/monitor-backend.exe' -Destination dist/portable -Force
 Copy-Item -LiteralPath 'app/desktop/src-tauri/Cargo.lock' -Destination dist/portable -Force
-Get-ChildItem -LiteralPath 'app/desktop/src-tauri/target/release/bundle' -Recurse -File | Where-Object Extension -In '.exe','.msi' | Copy-Item -Destination dist -Force
+$config = Get-Content -LiteralPath 'app/desktop/src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json
+$prefix = "$($config.productName)_$($config.version)_"
+# The Rust cache may retain installers from previous versions. Export only this build.
+$installers = @(Get-ChildItem -LiteralPath 'app/desktop/src-tauri/target/release/bundle' -Recurse -File | Where-Object { $_.Extension -in '.exe','.msi' -and $_.Name.StartsWith($prefix) })
+if ($installers.Count -ne 2) { throw "Esperados dois instaladores da versão $($config.version)." }
+$installers | Copy-Item -Destination dist -Force
 Write-Host 'Instaladores gerados em dist/'

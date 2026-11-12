@@ -6,7 +6,7 @@ Situação em 12/11/2026. Detalhes de cada verificação em `VALIDATION.md`; reg
 |---|---|---|
 | 1 | Base desktop: monorepo, banco e migrações, oito telas, demandas, kanban, Tauri e sidecar, bandeja, instalador | Código entregue. Falta validar manualmente instalador, bandeja, instância única e autostart numa sessão Windows |
 | 2 | E-mails: IMAP somente leitura, credenciais no Windows, fila de IA, regras, sugestões, correções, avaliação | Código entregue e testado com servidor IMAP e Ollama simulados. Falta validar com contas reais e medir o modelo com e-mails rotulados |
-| 2b | Pasta de arquivos: escolha no instalador e nas Configurações, backup diário e exportação | Código entregue. A página do instalador ainda não foi compilada (depende do build no CI) |
+| 2b | Pasta de arquivos: escolha no instalador e nas Configurações, backup diário e exportação | Compilação NSIS/MSI aprovada no CI. Interação manual com a página do instalador pendente |
 | 3 | Lembretes: agendamento persistente, notificações do Windows, resumo diário às 7h30 | Próxima |
 | 4 | Sites e relay: formulários, deduplicação, verificações, incidentes, monitor externo | Pendente |
 | 5 | Arquivos: catálogo da pasta, extração de texto, busca, classificação | Pendente (pasta e backup já entregues em 2b) |

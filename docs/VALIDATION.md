@@ -8,6 +8,7 @@ Situação em 12/11/2026, versão `0.2.0-alpha.1` (Fases 1 e 2 e pasta de arquiv
 |---|---|
 | `pytest app/backend/tests` | 22 testes passaram |
 | `npm test` (componentes) | 2 testes passaram |
+| `scripts/keyring_smoke.py` | passou no cofre do Windows: escrita, leitura e remoção de credencial sintética |
 | `tsc --noEmit` | sem erros |
 | `scripts/ui_smoke.mjs` (prévia, Edge headless) | passou: sugestão, criação, edição, e-mails, oito telas, larguras de 820, 1600 e 2560 px, nenhum texto abaixo de 11 px |
 | `scripts/integration_smoke.mjs` (API e SQLite reais, IPC simulado) | passou: criação, persistência, histórico, pasta de arquivos e backup |
@@ -23,21 +24,23 @@ Cobertura dos testes de backend:
 - Pasta de arquivos: validação do caminho, estrutura, backup pela API do SQLite, exportação CSV, escolha do instalador como padrão.
 - Migração de um banco da Fase 1 para o esquema atual.
 
-## O que não foi validado
+## Validação externa e pendências
 
-- **Instalador com a página “Pasta de arquivos”.** O modelo NSIS (`app/desktop/src-tauri/windows/`) não foi compilado: não há Rust nesta máquina e a compilação isolada com NSIS não pôde ser executada. O primeiro build no GitHub Actions é a validação. O MSI não tem essa página; nele a pasta é escolhida no aplicativo.
-- **Código Rust.** A inclusão do plugin de diálogo e o `Cargo.lock` serão resolvidos no primeiro build; o `Cargo.lock` versionado ainda não lista `tauri-plugin-dialog`.
+O [build final de 4359a07](https://github.com/pbrmarcos/monitor/actions/runs/43239428556) passou com testes, sidecar, frontend, Rust e instaladores NSIS/MSI. Os pacotes da release `v0.2.0-alpha.1` são os artefatos dessa execução. Alterações posteriores desta entrega são documentação, o lock gerado pelo próprio build e um filtro no script de empacotamento para excluir instaladores antigos retidos no cache. O código do aplicativo corresponde ao build validado.
+
+- **Interação com o instalador.** A compilação NSIS e MSI passou no [workflow Windows](https://github.com/pbrmarcos/monitor/actions/runs/43238640808), incluindo a página de pasta e o plugin de diálogo. Falta conferir a interação manual com essa página. O MSI não tem essa página; nele a pasta é escolhida no aplicativo.
+- **Código Rust.** A compilação passou no CI; o `Cargo.lock` resolvido pelo build foi recuperado para versionamento. A validação de interação com as funções nativas continua pendente.
 - **Contas IMAP reais.** A coleta só rodou contra o servidor falso. Falta testar com as quatro caixas, incluindo certificados, pastas e volume real.
-- **Gerenciador de Credenciais do Windows.** Os testes usam um cofre em memória; a gravação real da senha não foi exercitada.
+- **Credenciais reais.** A suíte usa cofre em memória. O teste separado `scripts/keyring_smoke.py` confirmou escrita, leitura e remoção no cofre real do Windows com uma credencial sintética temporária. Nenhuma senha real foi usada.
 - **Ollama real.** A chamada com saída estruturada foi testada com transporte simulado. Nenhum modelo foi baixado ou medido.
 - **Janela, bandeja, instância única e autostart** continuam pendentes desde a Fase 1.
 
 ## Pendências que dependem do Marcos
 
-- Rodar o workflow Windows e instalar o `.exe` gerado, conferindo a página de pasta.
+- Instalar o `.exe` gerado pelo workflow e conferir a página de pasta.
 - Dados das contas: servidor IMAP, porta, usuário e senha de cada frente.
 - Instalar o Ollama e baixar o modelo; depois rotular um CSV de e-mails reais e rodar `scripts/eval_emails.py`.
 
-## Revis?o de continuidade
+## Revisão de continuidade
 
-Foram adicionadas regress?es para filas IMAP acima de 200 mensagens, coleta parcial, prazos relativos a mensagens antigas, corre??es durante a chamada ao modelo, retirada de sugest?es rebaixadas, senhas em respostas de valida??o e f?rmulas em CSV. O cofre real do Windows foi testado somente com uma credencial sint?tica tempor?ria, removida ao final. Nenhuma conta real foi acessada.
+Foram adicionadas regressões para filas IMAP acima de 200 mensagens, coleta parcial, prazos relativos a mensagens antigas, correções durante a chamada ao modelo, retirada de sugestões rebaixadas, senhas em respostas de validação e fórmulas em CSV. O cofre real do Windows foi testado somente com uma credencial sintética temporária, removida ao final. Nenhuma conta real foi acessada.
