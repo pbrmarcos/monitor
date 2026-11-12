@@ -6,7 +6,7 @@ Adiar 15 min abre o formulário com o novo horário para confirmar. Concluir e C
 
 O resumo diário usa o fuso configurado na agenda (padrão America/Sao_Paulo). Não depende de Ollama: conta demandas com prazo ou retorno até hoje, lembretes e e-mails para agir. É gerado uma vez por dia útil, a partir do horário configurado. Na demonstração não há resumo automático nem entrega nativa.
 
-O worker verifica os agendamentos a cada 10 segundos. O processo nativo consulta a fila de avisos a cada 5 segundos, inclusive com a janela minimizada. O histórico só registra o encaminhamento ao Windows após o plugin aceitar o envio. Se o processo cair exatamente entre enviar e confirmar, um aviso poderá repetir após reiniciar; a fila não promete entrega exatamente uma vez. Falhas de envio preservam o aviso pendente. Marcar como lido evita novas tentativas desse aviso.
+O worker verifica os agendamentos a cada 10 segundos. O processo nativo consulta a fila de avisos a cada 5 segundos, inclusive com a janela minimizada. O histórico só registra o encaminhamento após o plugin aceitar o envio. Se o processo cair exatamente entre enviar e confirmar, um aviso poderá repetir após reiniciar; a fila não promete entrega exatamente uma vez. Falhas retornadas pelo plugin preservam o aviso pendente. Bloqueios ou falhas internas do Windows podem não ser reportados; a central do Monitor mantém seu próprio histórico. Marcar como lido evita novas tentativas desse aviso.
 
 Não desative a opção Iniciar com Windows se quiser acompanhamento automático ao ligar o PC. Fechar a janela mantém a bandeja; Sair encerra o processamento. Não há funcionamento com PC desligado até a integração com o relay.
 

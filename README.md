@@ -39,7 +39,7 @@ scripts/         Build Windows, avaliações e ferramentas futuras
 docs/            Planejamento e documentação
 ```
 
-Backend, frontend e desktop contêm as Fases 1 e 2. O relay permanece reservado para a Fase 4.
+Backend, frontend e desktop contêm as Fases 1 a 3. O relay permanece reservado para a Fase 4.
 
 O aplicativo será instalável no Windows. O Ollama executará a IA no PC; o relay receberá eventos enquanto o PC estiver desligado. Monitoramento externo deverá detectar indisponibilidade do próprio VPS.
 

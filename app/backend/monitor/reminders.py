@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 import threading
 
 from sqlmodel import Session, select
+from sqlalchemy import text
 from .models import Demand, Email, EmailAnalysis, EmailAccount, Reminder, Notice, Setting, as_utc, now
 from .deadlines import find_deadline
 
@@ -69,6 +70,8 @@ def generate(engine, instant: datetime | None = None, demo: bool = False):
     try:
         instant = as_utc(instant or now())
         with Session(engine) as db:
+            # Serialize generation with edits/cancellations before taking a snapshot.
+            db.execute(text('BEGIN IMMEDIATE'))
             config = settings(db)
             zone = ZoneInfo(config['timezone'])
             local = instant.astimezone(zone)

@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session, select
+from sqlalchemy import text
 
 from . import reminders
 from .models import Demand, Reminder, Notice, Setting, as_utc, now
@@ -56,6 +57,7 @@ def router(engine, session, demo):
 
     @api.put('/agenda/settings')
     def save_config(payload: AgendaSettings, db: Session = Depends(session)):
+        db.execute(text('BEGIN IMMEDIATE'))
         for key, value in payload.model_dump().items():
             db.merge(Setting(key=f'agenda:{key}', value=str(value).lower() if isinstance(value, bool) else value))
         if not payload.notifications_enabled:
@@ -90,6 +92,7 @@ def router(engine, session, demo):
 
     @api.put('/reminders/{identifier}')
     def update(identifier: int, payload: ReminderInput, db: Session = Depends(session)):
+        db.execute(text('BEGIN IMMEDIATE'))
         validate_demand(payload, db)
         item = get(identifier, db)
         reminders.withdraw_notices(db, identifier)
@@ -106,6 +109,7 @@ def router(engine, session, demo):
     def resolve(identifier: int, action: str, db: Session = Depends(session)):
         if action not in ('complete', 'cancel'):
             raise HTTPException(404, 'Ação não encontrada.')
+        db.execute(text('BEGIN IMMEDIATE'))
         item = get(identifier, db)
         item.status = 'concluido' if action == 'complete' else 'cancelado'
         reminders.withdraw_notices(db, identifier)

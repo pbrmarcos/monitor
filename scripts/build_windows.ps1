@@ -11,6 +11,7 @@ Invoke-Checked { & $Python -m pytest app/backend/tests }
 Invoke-Checked { npm.cmd test }
 Invoke-Checked { & $Python -m PyInstaller --clean --noconfirm --onefile --name monitor-backend --hidden-import keyring.backends.Windows --collect-data tzdata --paths app/backend --distpath app/desktop/src-tauri/binaries app/backend/run_backend.py }
 Invoke-Checked { & $Python scripts/desktop_smoke.py }
+Invoke-Checked { & $Python scripts/reminder_sidecar_smoke.py }
 $targetTriple = ((rustc -vV | Select-String '^host:').ToString() -split ': ')[1].Trim()
 if (-not $targetTriple) { throw 'Não foi possível identificar o target Rust.' }
 Copy-Item -LiteralPath 'app/desktop/src-tauri/binaries/monitor-backend.exe' -Destination "app/desktop/src-tauri/binaries/monitor-backend-$targetTriple.exe" -Force
