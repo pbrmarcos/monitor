@@ -19,13 +19,15 @@ from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import text
+from sqlalchemy.schema import CreateTable, CreateIndex
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from . import ai, assistant, gcal, inbox, mail, prefs, social, storage, reminders, agenda_api, sites, forms
 from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Event, Setting, Suggestion, as_utc, now
+from .models import Conversation, ChatTurn, AssistantRule
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
-VERSION = '0.6.0-alpha.1'
+VERSION = '0.6.0-alpha.2'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
@@ -90,6 +92,25 @@ def migrate(engine):
         connection.execute(text('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY)'))
     SQLModel.metadata.create_all(engine)
     with engine.begin() as connection:
+        connection.execute(text('BEGIN IMMEDIATE'))
+        # Protótipos locais já podem ter as tabelas de chat sem AUTOINCREMENT.
+        # Recria atomicamente, preservando IDs e mensagens, para respostas atrasadas
+        # nunca encontrarem uma conversa nova com o mesmo identificador.
+        for model in (Conversation, ChatTurn, AssistantRule):
+            table = model.__table__
+            definition = connection.execute(text('SELECT sql FROM sqlite_master WHERE type=\'table\' AND name=:name'), {'name': table.name}).scalar()
+            if definition and 'AUTOINCREMENT' not in definition.upper():
+                columns = {row[1] for row in connection.execute(text(f'PRAGMA table_info("{table.name}")'))}
+                if columns != set(table.columns.keys()):
+                    raise RuntimeError('Esquema incompatível; migração de conversas cancelada.')
+                previous = f'{table.name}_before_v7'
+                connection.execute(text(f'ALTER TABLE "{table.name}" RENAME TO "{previous}"'))
+                connection.execute(CreateTable(table))
+                names = ', '.join(f'"{name}"' for name in table.columns.keys())
+                connection.execute(text(f'INSERT INTO "{table.name}" ({names}) SELECT {names} FROM "{previous}"'))
+                connection.execute(text(f'DROP TABLE "{previous}"'))
+                for index in table.indexes:
+                    connection.execute(CreateIndex(index))
         # Versão 2: origem e autoria das demandas (tabelas de e-mail vêm do create_all).
         columns = {row[1] for row in connection.execute(text('PRAGMA table_info(demand)'))}
         if 'origin_ref' not in columns:

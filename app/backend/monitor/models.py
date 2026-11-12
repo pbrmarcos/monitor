@@ -227,6 +227,7 @@ class SocialMedia(SQLModel, table=True):
 
 
 class Conversation(SQLModel, table=True):
+    __table_args__ = {'sqlite_autoincrement': True}
     id: int | None = Field(default=None, primary_key=True)
     mode: str = 'work'  # work: com os dados do Monitor; general: conversa livre
     title: str = ''
@@ -235,6 +236,7 @@ class Conversation(SQLModel, table=True):
 
 
 class ChatTurn(SQLModel, table=True):
+    __table_args__ = {'sqlite_autoincrement': True}
     id: int | None = Field(default=None, primary_key=True)
     conversation_id: int = Field(index=True)
     role: str  # user/assistant, preference_user/preference_assistant, rule ou error
@@ -243,6 +245,7 @@ class ChatTurn(SQLModel, table=True):
 
 
 class AssistantRule(SQLModel, table=True):
+    __table_args__ = {'sqlite_autoincrement': True}
     """Preferência duradoura que o assistente segue em todas as conversas."""
     id: int | None = Field(default=None, primary_key=True)
     text: str

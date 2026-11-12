@@ -24,4 +24,4 @@ O modelo pode aplicar uma preferência de forma imperfeita; revise as respostas.
 
 ## Dados e limites
 
-Conversas e preferências são locais. Excluir no banco em uso não apaga cópias já existentes nos seus backups; elas seguem a retenção configurada. Senhas e tokens não entram no contexto preparado pelo Monitor. O assistente usa o modelo do Ollama configurado no aplicativo, sem navegação na internet e sem executar operações comerciais.
+Conversas e preferências são locais. Excluir no banco em uso não apaga cópias já existentes nos seus backups; elas seguem a retenção configurada. O contexto automático não lê senhas e tokens do cofre. O assistente usa o modelo do Ollama configurado no aplicativo, sem navegação na internet e sem executar operações comerciais.

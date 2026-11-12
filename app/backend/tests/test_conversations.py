@@ -160,11 +160,14 @@ def test_parallel_posts_and_deletion_during_stream(tmp_path, monkeypatch):
             assert started.wait(5)
             assert api.post(route + '/messages', json={'content': 'Outra pergunta'}).status_code == 409
             assert api.delete(route).status_code == 204
+            replacement = api.post('/assistant/conversations', json={'mode': 'general'}).json()['id']
+            assert replacement > chat['id']
         finally:
             proceed.set()
         assert future.result(timeout=10).status_code == 200
         assert api.get(route + '/messages').status_code == 404
         assert api.get('/assistant/rules').json() == []
+        assert api.get(f'/assistant/conversations/{replacement}/messages').json() == []
         with Session(app.state.engine) as db:
             assert db.exec(select(ChatTurn)).all() == []
 
@@ -194,3 +197,14 @@ def test_incomplete_provider_stream_cannot_learn_a_rule(tmp_path, monkeypatch):
         assert 'error' in result[-1] and not any(event.get('done') for event in result)
         assert api.get('/assistant/rules').json() == []
         assert api.get(f'/assistant/conversations/{identifier}/messages').json()[-1]['error']
+
+
+def test_legacy_prototype_migration_preserves_data_and_prevents_id_reuse(tmp_path):
+    import sqlite3
+    with sqlite3.connect(tmp_path / 'monitor.db') as db:
+        db.execute('CREATE TABLE conversation (id INTEGER PRIMARY KEY, mode VARCHAR NOT NULL, title VARCHAR NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL)')
+        db.execute("INSERT INTO conversation VALUES (10, 'general', 'Conversa anterior', '2026-11-12 12:00:00', '2026-11-12 12:00:00')")
+    with TestClient(create_app(tmp_path, 'session', False, secret_store=MemoryStore()), headers=HEADERS) as api:
+        assert api.get('/assistant/conversations').json()[0]['title'] == 'Conversa anterior'
+        assert api.delete('/assistant/conversations/10').status_code == 204
+        assert api.post('/assistant/conversations', json={'mode': 'general'}).json()['id'] > 10
