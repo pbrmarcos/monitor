@@ -10,8 +10,8 @@ from urllib.error import HTTPError, URLError
 
 root = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory() as folder:
-    env = {**os.environ, 'LOCALAPPDATA': folder, 'MONITOR_DEMO': '0'}
-    child = subprocess.Popen([str(root / 'app/desktop/src-tauri/binaries/monitor-backend.exe')], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+    env = {**os.environ, 'LOCALAPPDATA': folder, 'MONITOR_DEMO': '0', 'MONITOR_PARENT_PIPE': '1'}
+    child = subprocess.Popen([str(root / 'app/desktop/src-tauri/binaries/monitor-backend.exe')], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
     try:
         handshake = json.loads(child.stdout.readline())
         url = f"http://127.0.0.1:{handshake['port']}"
@@ -36,5 +36,13 @@ with tempfile.TemporaryDirectory() as folder:
         assert (Path(folder)/'Monitor/monitor.db').exists()
         print('Packaged backend: handshake, auth, create and local database OK')
     finally:
-        child.terminate()
-        child.communicate(timeout=15)
+        child.stdin.close()
+        try:
+            child.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            subprocess.run(['taskkill.exe', '/PID', str(child.pid), '/T', '/F'], check=False, capture_output=True)
+            child.wait(timeout=5)
+            raise
+        finally:
+            child.stdout.close()
+            child.stderr.close()

@@ -41,7 +41,7 @@ fn start_backend(app: tauri::AppHandle, backend: Backend) {
                 use std::os::windows::process::CommandExt;
                 command.creation_flags(0x08000000);
             }
-            command.stdout(Stdio::piped()).stderr(Stdio::null());
+            command.env("MONITOR_PARENT_PIPE", "1").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
             let mut child = match command.spawn() { Ok(child) => child, Err(_) => { failures += 1; std::thread::sleep(Duration::from_secs(2)); continue; } };
             let output = child.stdout.take();
             *backend.child.lock().unwrap() = Some(child);
@@ -121,7 +121,21 @@ fn main() {
         if let tauri::RunEvent::Exit = event {
             let backend = app.state::<Backend>();
             backend.stopped.store(true, Ordering::SeqCst);
-            if let Some(mut child) = backend.child.lock().unwrap().take() { let _ = child.kill(); let _ = child.wait(); }
+            if let Some(mut child) = backend.child.lock().unwrap().take() {
+                drop(child.stdin.take());
+                for _ in 0..30 {
+                    if child.try_wait().ok().flatten().is_some() { break; }
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+                if child.try_wait().ok().flatten().is_none() {
+                    #[cfg(windows)] {
+                        use std::os::windows::process::CommandExt;
+                        let _ = Command::new("taskkill.exe").args(["/PID", &child.id().to_string(), "/T", "/F"]).creation_flags(0x08000000).output();
+                    }
+                    let _ = child.kill();
+                }
+                let _ = child.wait();
+            };
         }
     });
 }

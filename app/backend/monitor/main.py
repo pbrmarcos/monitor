@@ -4,6 +4,7 @@ import os
 import secrets
 import socket
 import sys
+import threading
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -219,7 +220,15 @@ def run():
     sock.bind(('127.0.0.1', 0))
     # Handshake goes only to the parent sidecar pipe, never a log file.
     print(json.dumps({'port': sock.getsockname()[1], 'token': token}), flush=True)
-    uvicorn.Server(uvicorn.Config(app, log_level='warning', access_log=False)).run(sockets=[sock])
+    server = uvicorn.Server(uvicorn.Config(app, log_level='warning', access_log=False))
+    if os.getenv('MONITOR_PARENT_PIPE') == '1':
+        def watch_parent():
+            try:
+                sys.stdin.buffer.read()
+            finally:
+                server.should_exit = True
+        threading.Thread(target=watch_parent, daemon=True).start()
+    server.run(sockets=[sock])
 
 
 if __name__ == '__main__':
