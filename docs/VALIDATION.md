@@ -8,6 +8,12 @@ Validação local em 12/11/2026: 5 testes backend e 2 testes de componentes pass
 
 O teste integrado também passou com frontend, HTTP e SQLite reais: criação, recarga da tela, persistência e consulta do histórico. Somente a camada IPC nativa é simulada nesse teste; ele não substitui a validação da janela Tauri.
 
+## Build da alpha
+
+O commit `2f0446d` passou no [workflow Windows](https://github.com/pbrmarcos/monitor/actions/runs/43206052108), com os cinco testes backend, dois testes de componentes, sidecar empacotado e instaladores NSIS/MSI. Os artefatos finais foram baixados para conferência.
+
+O executável desktop foi iniciado com dados de demonstração isolados e `--no-autostart`; a janela “Monitor — Sua central de operação” foi localizada no Windows. A inspeção pela ferramenta de controle do computador expirou aguardando autorização. Portanto, interação manual com a janela, bandeja e instalador permanece pendente; a detecção da janela não comprova esses fluxos.
+
 - Backend: autenticação, campos inválidos, data de retorno obrigatória, CRUD, histórico, persistência e separação do banco de demonstração.
 - Frontend: oito telas, filtro por frente e validação de formulário.
 - Teste visual: criação e edição, acompanhamento com data e viewport compacto.
