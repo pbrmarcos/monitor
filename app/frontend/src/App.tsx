@@ -76,7 +76,7 @@ const nav: Record<Page, { icon: typeof Mail; title: string; lead: string }> = {
   Assistente: {
     icon: MessageSquare,
     title: "Pense junto com seu assistente.",
-    lead: "Perguntas sobre suas demandas, e-mails e lembretes, respondidas neste computador.",
+    lead: "Um espaço para conversar, explorar ideias e tirar dúvidas sobre qualquer assunto com sua IA local.",
   },
   Configurações: {
     icon: Settings,
@@ -98,7 +98,8 @@ const withSearch: Page[] = ["Visão geral", "Demandas", "Arquivos"];
 export default function App() {
   const m = useMonitor();
   const [history, setHistory] = useState<HistoryEvent[]>([]);
-  const chat = useChat(m);
+  const workChat = useChat(m, "work");
+  const generalChat = useChat(m, "general");
   const { detail, connected } = m;
   useEffect(() => {
     setHistory([]);
@@ -288,7 +289,7 @@ export default function App() {
               {m.page === "Arquivos" && <Files m={m} />}
               {m.page === "Assistente" && (
                 <section className="panel full-chat">
-                  <Chat chat={chat} />
+                  <Chat chat={generalChat} />
                 </section>
               )}
               {m.page === "Configurações" && <SettingsPage m={m} />}
@@ -299,7 +300,7 @@ export default function App() {
       {overview && (
         <aside className="assistant" aria-label="Assistente">
           <AssistantHeader />
-          <Chat chat={chat} />
+          <Chat chat={workChat} />
         </aside>
       )}
       {m.notice && (

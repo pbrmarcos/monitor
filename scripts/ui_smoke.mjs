@@ -130,7 +130,22 @@ await go("Visão geral");
 await page.setViewportSize({ width: 1600, height: 1050 });
 await compactMessages();
 await go("Assistente");
+if (await page.locator(".chat-log .message").count())
+  throw new Error(
+    "A conversa geral deve começar separada da conversa de demandas",
+  );
+await page
+  .getByLabel("Mensagem para o assistente")
+  .fill("Vamos conversar sobre astronomia");
+await page
+  .getByRole("button", { name: "Enviar mensagem", exact: true })
+  .click();
 await compactMessages();
+await page
+  .getByRole("button", { name: "Limpar conversa", exact: true })
+  .click();
+if (await page.locator(".chat-log .message").count())
+  throw new Error("Conversa geral não foi limpa");
 await go("Visão geral");
 await page.setViewportSize({ width: 820, height: 1000 });
 await compactMessages();

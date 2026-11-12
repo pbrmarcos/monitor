@@ -198,8 +198,9 @@ export type Calendar = {
 export async function chatStream(
   messages: { role: string; content: string }[],
   onDelta: (text: string) => void,
+  mode: "work" | "general" = "work",
 ) {
-  const response = await request("/assistant/chat", "POST", { messages });
+  const response = await request("/assistant/chat", "POST", { messages, mode });
   if (!response.ok || !response.body)
     throw new Error("Não foi possível enviar a pergunta.");
   const reader = response.body.getReader(),

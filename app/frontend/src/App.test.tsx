@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import App from "./App";
 import { DemandModal } from "./DemandModal";
+import { useState } from "react";
+import { Chat, useChat } from "./pages/Other";
+import * as client from "./api";
+import type { Monitor } from "./store";
 afterEach(cleanup);
 HTMLDialogElement.prototype.showModal = function () {
   this.open = true;
@@ -11,6 +15,68 @@ HTMLDialogElement.prototype.close = function () {
   this.open = false;
 };
 describe("Monitor interface", () => {
+  it("keeps general and work chats independent and sends their modes", async () => {
+    const stream = vi
+      .spyOn(client, "chatStream")
+      .mockImplementation(async (_messages, delta) => {
+        delta("Resposta local.");
+      });
+    const m = {
+      connected: true,
+      settings: { model: "local" },
+      ollama: { available: true, models: ["local"] },
+      setPage: vi.fn(),
+    } as unknown as Monitor;
+    function Conversations() {
+      const work = useChat(m, "work"),
+        general = useChat(m, "general");
+      const [free, setFree] = useState(false);
+      return (
+        <>
+          <button onClick={() => setFree(false)}>Trabalho</button>
+          <button onClick={() => setFree(true)}>Conversa geral</button>
+          <Chat chat={free ? general : work} />
+        </>
+      );
+    }
+    try {
+      const user = userEvent.setup();
+      render(<Conversations />);
+      await user.type(
+        screen.getByLabelText("Mensagem para o assistente"),
+        "Priorizar proposta",
+      );
+      await user.click(screen.getByRole("button", { name: "Enviar mensagem" }));
+      expect(stream).toHaveBeenNthCalledWith(
+        1,
+        [{ role: "user", content: "Priorizar proposta" }],
+        expect.any(Function),
+        "work",
+      );
+      await user.click(screen.getByRole("button", { name: "Conversa geral" }));
+      expect(screen.queryByText("Priorizar proposta")).not.toBeInTheDocument();
+      await user.type(
+        screen.getByLabelText("Mensagem para o assistente"),
+        "Explique as estrelas",
+      );
+      await user.click(screen.getByRole("button", { name: "Enviar mensagem" }));
+      expect(stream).toHaveBeenNthCalledWith(
+        2,
+        [{ role: "user", content: "Explique as estrelas" }],
+        expect.any(Function),
+        "general",
+      );
+      await user.click(screen.getByRole("button", { name: "Limpar conversa" }));
+      expect(
+        screen.queryByText("Explique as estrelas"),
+      ).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Trabalho" }));
+      expect(screen.getByText("Priorizar proposta")).toBeInTheDocument();
+      expect(screen.getByText("Resposta local.")).toBeInTheDocument();
+    } finally {
+      stream.mockRestore();
+    }
+  });
   it("navigates through all screens and filters demo demands", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -42,24 +108,16 @@ describe("Monitor interface", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByText("Explorar demonstração"));
-    await user.click(
-      screen.getByRole("button", { name: "Lembretes" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Lembretes" }));
     await user.type(
       screen.getByLabelText("O que lembrar?"),
       "Retornar orçamento",
     );
-    await user.click(
-      screen.getByRole("button", { name: "Criar lembrete" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Criar lembrete" }));
     expect(await screen.findByText("Retornar orçamento")).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", { name: "Concluir" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Concluir" }));
     expect(screen.queryByText("Retornar orçamento")).not.toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", { name: "Ver histórico" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Ver histórico" }));
     expect(await screen.findByText("Retornar orçamento")).toBeInTheDocument();
   });
   it("requires follow-up date and submits explicit user input", async () => {

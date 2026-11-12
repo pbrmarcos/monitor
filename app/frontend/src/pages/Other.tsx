@@ -111,10 +111,14 @@ export function Files({ m }: { m: Monitor }) {
 const OFFLINE =
   "Na prévia do navegador o assistente não fala com o modelo. Abra o aplicativo desktop para conversar.";
 
-type ChatMessage = { role: "user" | "assistant"; text: string; error?: boolean };
+type ChatMessage = {
+  role: "user" | "assistant";
+  text: string;
+  error?: boolean;
+};
 
-/** Conversa única, compartilhada entre o painel da visão geral e a tela do assistente. */
-export function useChat(m: Monitor) {
+/** Cada modo mantém sua própria conversa durante a sessão do aplicativo. */
+export function useChat(m: Monitor, mode: "work" | "general" = "work") {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const ready = m.connected && !!m.ollama?.models.includes(m.settings.model);
@@ -122,9 +126,12 @@ export function useChat(m: Monitor) {
     setMessages((old) => [...old.slice(0, -1), change(old[old.length - 1])]);
   async function ask(text: string) {
     const question = text.trim();
-    if (!question || busy) return;
+    if (!question || busy || question.length > 4000) return;
     const history = [
-      ...messages.filter((item) => !item.error && item.text),
+      ...messages
+        .filter((item) => !item.error && item.text)
+        .slice(-10)
+        .map((item) => ({ ...item, text: item.text.slice(0, 4000) })),
       { role: "user" as const, text: question },
     ];
     setMessages((old) => [
@@ -138,6 +145,7 @@ export function useChat(m: Monitor) {
       await chatStream(
         history.map((item) => ({ role: item.role, content: item.text })),
         (delta) => reply((last) => ({ ...last, text: last.text + delta })),
+        mode,
       );
     } catch (e) {
       reply(() => ({
@@ -150,6 +158,7 @@ export function useChat(m: Monitor) {
     }
   }
   return {
+    mode,
     messages,
     busy,
     ready,
@@ -163,6 +172,7 @@ export function useChat(m: Monitor) {
 }
 
 export function Chat({ chat }: { chat: ReturnType<typeof useChat> }) {
+  const general = chat.mode === "general";
   const [question, setQuestion] = useState("");
   const log = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -176,11 +186,15 @@ export function Chat({ chat }: { chat: ReturnType<typeof useChat> }) {
     <div className="chat">
       {chat.messages.length === 0 && (
         <div className="chat-intro">
-          <h3>Um pouco mais de clareza.</h3>
+          <h3>
+            {general
+              ? "Sobre o que vamos conversar?"
+              : "Um pouco mais de clareza."}
+          </h3>
           <p>
-            Pergunte sobre suas demandas, prazos, e-mails e lembretes. A
-            resposta sai do modelo instalado neste computador e cita de onde
-            veio cada informação.
+            {general
+              ? "Um espaço para tirar dúvidas, explorar ideias, escrever ou aprender sobre qualquer assunto com a sua IA local. Esta conversa tem seu próprio histórico."
+              : "Pergunte sobre suas demandas, prazos, e-mails e lembretes. A resposta sai do modelo instalado neste computador e cita de onde veio cada informação."}
           </p>
         </div>
       )}
@@ -208,7 +222,13 @@ export function Chat({ chat }: { chat: ReturnType<typeof useChat> }) {
         ))}
       </div>
       <div className="prompts">
-        {["O que priorizar hoje?", "Resumir meus e-mails"].map((prompt) => (
+        {(general
+          ? [
+              "Me ajude a desenvolver uma ideia",
+              "Explique um assunto de forma simples",
+            ]
+          : ["O que priorizar hoje?", "Resumir meus e-mails"]
+        ).map((prompt) => (
           <button
             key={prompt}
             disabled={chat.busy}
@@ -228,7 +248,12 @@ export function Chat({ chat }: { chat: ReturnType<typeof useChat> }) {
       >
         <textarea
           aria-label="Mensagem para o assistente"
-          placeholder="Converse com seu assistente…"
+          placeholder={
+            general
+              ? "Converse sobre qualquer assunto…"
+              : "Pergunte sobre suas demandas…"
+          }
+          maxLength={4000}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => {
@@ -263,7 +288,7 @@ export function AssistantHeader() {
     <header>
       <div>
         <Sparkles size={18} aria-hidden />
-        Assistente
+        Assistente de trabalho
       </div>
       <span className="badge ai">Local</span>
     </header>

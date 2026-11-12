@@ -25,7 +25,7 @@ from . import ai, assistant, gcal, inbox, mail, prefs, social, storage, reminder
 from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Event, Setting, Suggestion, as_utc, now
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
-VERSION = '0.5.2-alpha.1'
+VERSION = '0.5.3-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
@@ -548,9 +548,9 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
         if payload.messages[-1].role != 'user':
             raise HTTPException(400, 'A última mensagem deve ser uma pergunta.')
         model = inbox.setting(db, 'model', ai.DEFAULT_MODEL)
-        data = assistant.context(db, date.today())
+        data = assistant.context(db, date.today()) if payload.mode == 'work' else ''
         history = [message.model_dump() for message in payload.messages[-12:]]
-        return StreamingResponse(assistant.stream(model, data, history), media_type='application/x-ndjson')
+        return StreamingResponse(assistant.stream(model, data, history, mode=payload.mode), media_type='application/x-ndjson')
 
     # ---- Google Agenda ------------------------------------------------------
 
