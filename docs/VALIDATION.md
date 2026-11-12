@@ -1,6 +1,14 @@
 # Validação
 
-Situação em 12/11/2026, versão `0.5.2-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 12/11/2026, versão `0.5.3-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Conversa geral e assistente de trabalho (0.5.3-alpha.1)
+
+O teste da API bloqueia explicitamente a coleta de contexto comercial durante uma conversa geral e confere o conteúdo enviado ao Ollama simulado, com o histórico fornecido pelo usuário. O modo padrão continua sendo o de trabalho, preservando os clientes anteriores e as fontes dos registros.
+
+Quatro testes de componentes passaram; o novo teste confere o modo e o histórico enviados em cada tela e a limpeza independente. A verificação no navegador alternou entre as duas conversas, limpou a geral e confirmou a permanência da conversa de trabalho, mantendo os balões compactos em três larguras. TypeScript/Vite compilou. Os históricos são de sessão; o modelo recebe as mensagens recentes de cada conversa.
+
+O [build Windows de 664a796](https://github.com/pbrmarcos/monitor/actions/runs/43307550998) passou com os testes, sidecar, scheduler, frontend, Rust, instaladores e assinaturas do atualizador. Os pacotes 0.5.3 vêm dessa execução; a instalação pelo botão continua pendente de validação manual.
 
 ## Favicons das empresas (0.5.2-alpha.1)
 
