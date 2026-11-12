@@ -9,9 +9,13 @@
     "autostart:allow-is-enabled",
     "notification:default",
     "dialog:allow-open",
+    "updater:default",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://ollama.com/download/windows" }]
+      "allow": [
+        { "url": "https://ollama.com/download/windows" },
+        { "url": "https://console.cloud.google.com/*" }
+      ]
     }
   ]
 }

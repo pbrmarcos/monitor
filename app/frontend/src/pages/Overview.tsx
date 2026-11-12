@@ -7,7 +7,6 @@ import {
   CircleDashed,
   Globe,
   Mail,
-  MessageSquare,
   Plus,
   Sparkles,
   Workflow,
@@ -18,13 +17,13 @@ import { today } from "../demo";
 import type { Monitor } from "../store";
 import { fresh, siteStatus, useSites } from "./Sites";
 import {
+  Avatar,
   dateLabel,
   Empty,
   frontLabel,
   Panel,
   sample,
   senderName,
-  soon,
   Tabs,
 } from "../ui";
 
@@ -135,6 +134,11 @@ export function Overview({ m }: { m: Monitor }) {
       !e.demand_id &&
       ["acao", "importante"].includes(e.analysis?.importancia ?? ""),
   );
+  const followers = m.social.filter((p) => !m.front || p.front_id === m.front);
+  const gained = followers.reduce(
+    (sum, p) => sum + (p.followers_change ?? 0),
+    0,
+  );
   const metrics = [
     {
       label: "Demandas abertas",
@@ -167,10 +171,16 @@ export function Overview({ m }: { m: Monitor }) {
       icon: Globe,
     },
     {
-      label: "Mensagens pendentes",
-      value: m.preview ? (m.front ? [3, 2, 1, 1][m.front - 1] : 7) : "—",
-      caption: m.preview ? "Dados de demonstração" : "Redes sociais em breve",
-      icon: MessageSquare,
+      label: "Seguidores no Instagram",
+      value: followers.length
+        ? followers
+            .reduce((sum, p) => sum + (p.followers ?? 0), 0)
+            .toLocaleString("pt-BR")
+        : "—",
+      caption: followers.length
+        ? `${followers.length} ${followers.length === 1 ? "perfil" : "perfis"} · ${gained >= 0 ? "+" : ""}${gained.toLocaleString("pt-BR")} em 7 dias`
+        : "Nenhum perfil conectado",
+      icon: Activity,
     },
   ];
   return (
@@ -294,7 +304,7 @@ export function Overview({ m }: { m: Monitor }) {
                       <Globe size={18} aria-hidden />
                     </span>
                     <span className="row-body">
-                      <strong>frente0{n}.example</strong>
+                      <strong>{frontLabel(n)}</strong>
                       <small>Online</small>
                     </span>
                     <span className="row-meta">{180 + n * 17} ms</span>
@@ -333,7 +343,7 @@ export function Overview({ m }: { m: Monitor }) {
           </button>
         </Panel>
       </div>
-      <Panel title="Redes sociais" action={m.preview ? sample : soon}>
+      <Panel title="Redes sociais" action={m.preview ? sample : undefined}>
         <SocialTable m={m} />
       </Panel>
       <p className="footnote">
@@ -345,12 +355,17 @@ export function Overview({ m }: { m: Monitor }) {
 }
 
 export function SocialTable({ m }: { m: Monitor }) {
-  if (!m.preview)
+  const profiles = m.social.filter((p) => !m.front || p.front_id === m.front);
+  if (!profiles.length)
     return (
       <Empty
         icon={Activity}
-        text="Instagram e WhatsApp serão conectados pelas integrações oficiais em uma próxima versão."
-      />
+        text="Conecte um Instagram profissional na tela Redes sociais para acompanhar seguidores e posts."
+      >
+        <button className="sm" onClick={() => m.setPage("Redes sociais")}>
+          Conectar perfil
+        </button>
+      </Empty>
     );
   return (
     <div className="table-wrap">
@@ -360,23 +375,27 @@ export function SocialTable({ m }: { m: Monitor }) {
             <th>Perfil</th>
             <th>Seguidores</th>
             <th>Variação 7 dias</th>
-            <th>Mensagens</th>
+            <th>Posts 7 dias</th>
+            <th>Stories 7 dias</th>
           </tr>
         </thead>
         <tbody>
-          {[2480, 1820, 965, 3210].map(
-            (followers, i) =>
-              (!m.front || m.front === i + 1) && (
-                <tr key={i}>
-                  <td>
-                    <strong>@frente0{i + 1}</strong>
-                  </td>
-                  <td>{followers.toLocaleString("pt-BR")}</td>
-                  <td>+{[124, 68, 32, 146][i]}</td>
-                  <td>{[3, 2, 1, 1][i]} pendentes</td>
-                </tr>
-              ),
-          )}
+          {profiles.map((p) => (
+            <tr key={p.id}>
+              <td>
+                <Avatar src={p.avatar} name={p.name || p.username} />
+                <strong>@{p.username}</strong>
+              </td>
+              <td>{p.followers?.toLocaleString("pt-BR") ?? "—"}</td>
+              <td>
+                {p.followers_change === null
+                  ? "—"
+                  : `${p.followers_change > 0 ? "+" : ""}${p.followers_change.toLocaleString("pt-BR")}`}
+              </td>
+              <td>{p.posts_week ?? "—"}</td>
+              <td>{p.stories_week ?? "—"}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

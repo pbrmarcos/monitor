@@ -3,55 +3,13 @@ import {
   ArrowUpRight,
   FileText,
   Folder,
-  MessageSquare,
   Sparkles,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { chatStream } from "../api";
 import { files } from "../demo";
-import { newDemand, type Monitor } from "../store";
+import type { Monitor } from "../store";
 import { Callout, Empty, frontLabel, Panel, sample, soon } from "../ui";
-import { SocialTable } from "./Overview";
-
-export function Social({ m }: { m: Monitor }) {
-  return (
-    <>
-      {m.preview && (
-        <Callout>
-          Dados de demonstração. Nenhuma conta do Instagram ou WhatsApp está
-          conectada.
-        </Callout>
-      )}
-      <Panel title="Perfis" action={m.preview ? sample : soon}>
-        <SocialTable m={m} />
-      </Panel>
-      {m.preview && (
-        <Panel title="Mensagens sem resposta" action={sample}>
-          <div className="row">
-            <span className="row-icon">
-              <MessageSquare size={18} aria-hidden />
-            </span>
-            <span className="row-body">
-              <strong>Olá! Gostaria de saber mais sobre o serviço.</strong>
-              <small>@contato_exemplo · {frontLabel(1)}</small>
-            </span>
-            <button
-              className="sm"
-              onClick={() =>
-                m.setEditing({
-                  ...newDemand(),
-                  title: "Responder interesse no serviço",
-                  channel: "instagram",
-                })
-              }
-            >
-              + Demanda
-            </button>
-          </div>
-        </Panel>
-      )}
-    </>
-  );
-}
 
 export function Files({ m }: { m: Monitor }) {
   const [category, setCategory] = useState("Todas");
@@ -150,45 +108,112 @@ export function Files({ m }: { m: Monitor }) {
   );
 }
 
-const REPLY =
-  "O chat ainda não está conectado ao modelo. Por enquanto, consulte a fila de demandas e a caixa de e-mails no painel. Nenhuma mensagem foi enviada.";
+const OFFLINE =
+  "Na prévia do navegador o assistente não fala com o modelo. Abra o aplicativo desktop para conversar.";
 
-export function Chat() {
-  const [messages, setMessages] = useState<{ role: string; text: string }[]>(
-    [],
-  );
-  const [question, setQuestion] = useState("");
-  function ask(text: string) {
-    if (!text.trim()) return;
+type ChatMessage = { role: "user" | "assistant"; text: string; error?: boolean };
+
+/** Conversa única, compartilhada entre o painel da visão geral e a tela do assistente. */
+export function useChat(m: Monitor) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [busy, setBusy] = useState(false);
+  const ready = m.connected && !!m.ollama?.models.includes(m.settings.model);
+  const reply = (change: (last: ChatMessage) => ChatMessage) =>
+    setMessages((old) => [...old.slice(0, -1), change(old[old.length - 1])]);
+  async function ask(text: string) {
+    const question = text.trim();
+    if (!question || busy) return;
+    const history = [
+      ...messages.filter((item) => !item.error && item.text),
+      { role: "user" as const, text: question },
+    ];
     setMessages((old) => [
       ...old,
-      { role: "user", text },
-      { role: "assistant", text: REPLY },
+      { role: "user", text: question },
+      { role: "assistant", text: m.connected ? "" : OFFLINE },
     ]);
+    if (!m.connected) return;
+    setBusy(true);
+    try {
+      await chatStream(
+        history.map((item) => ({ role: item.role, content: item.text })),
+        (delta) => reply((last) => ({ ...last, text: last.text + delta })),
+      );
+    } catch (e) {
+      reply(() => ({
+        role: "assistant",
+        text: (e as Error).message,
+        error: true,
+      }));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return {
+    messages,
+    busy,
+    ready,
+    ask,
+    clear: () => setMessages([]),
+    openSettings: () => m.setPage("Configurações"),
+    preview: !m.connected,
+    available: !!m.ollama?.available,
+    model: m.settings.model,
+  };
+}
+
+export function Chat({ chat }: { chat: ReturnType<typeof useChat> }) {
+  const [question, setQuestion] = useState("");
+  const log = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    log.current?.scrollTo?.({ top: log.current.scrollHeight });
+  }, [chat.messages]);
+  function send(text: string) {
+    void chat.ask(text);
     setQuestion("");
   }
   return (
     <div className="chat">
-      {messages.length === 0 && (
+      {chat.messages.length === 0 && (
         <div className="chat-intro">
-          {soon}
           <h3>Um pouco mais de clareza.</h3>
           <p>
-            Em breve o assistente responderá sobre suas demandas, prazos e
-            e-mails, sempre citando as fontes.
+            Pergunte sobre suas demandas, prazos, e-mails e lembretes. A
+            resposta sai do modelo instalado neste computador e cita de onde
+            veio cada informação.
           </p>
         </div>
       )}
-      <div className="chat-log" aria-live="polite">
-        {messages.map((message, i) => (
-          <div key={i} className={`message ${message.role}`}>
-            {message.text}
+      {!chat.preview && !chat.ready && (
+        <Callout
+          action={
+            <button className="sm" onClick={chat.openSettings}>
+              Configurar
+            </button>
+          }
+        >
+          {chat.available
+            ? `O modelo ${chat.model} ainda não foi baixado.`
+            : "O Ollama não respondeu. Abra o Ollama e verifique de novo em Configurações."}
+        </Callout>
+      )}
+      <div className="chat-log" aria-live="polite" ref={log}>
+        {chat.messages.map((message, i) => (
+          <div
+            key={i}
+            className={`message ${message.role} ${message.error ? "error" : ""}`}
+          >
+            {message.text || "Pensando…"}
           </div>
         ))}
       </div>
       <div className="prompts">
         {["O que priorizar hoje?", "Resumir meus e-mails"].map((prompt) => (
-          <button key={prompt} onClick={() => ask(prompt)}>
+          <button
+            key={prompt}
+            disabled={chat.busy}
+            onClick={() => send(prompt)}
+          >
             {prompt}
             <ArrowUpRight size={16} />
           </button>
@@ -198,7 +223,7 @@ export function Chat() {
         className="composer"
         onSubmit={(e) => {
           e.preventDefault();
-          ask(question);
+          send(question);
         }}
       >
         <textarea
@@ -206,12 +231,29 @@ export function Chat() {
           placeholder="Converse com seu assistente…"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send(question);
+            }
+          }}
         />
-        <button className="icon sm primary" aria-label="Enviar mensagem">
+        <button
+          className="icon sm primary"
+          aria-label="Enviar mensagem"
+          disabled={chat.busy || !question.trim()}
+        >
           <ArrowRight size={18} />
         </button>
       </form>
-      <small>IA local · sugestões precisam de revisão</small>
+      <div className="chat-foot">
+        <small>IA local · confira as respostas antes de agir</small>
+        {chat.messages.length > 0 && (
+          <button className="link" disabled={chat.busy} onClick={chat.clear}>
+            Limpar conversa
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -59,6 +59,47 @@ try {
   await page.getByText("Demanda criada.", { exact: true }).waitFor();
   await page.reload();
   await page.getByText("Backend local conectado").waitFor();
+  // Chat com o modelo real, só quando o Ollama desta máquina tem o modelo padrão.
+  const models = await fetch("http://127.0.0.1:11434/api/tags")
+    .then((r) => r.json())
+    .then((data) => data.models.map((item) => item.name))
+    .catch(() => []);
+  if (models.includes("qwen3.5:4b-q4_K_M")) {
+    await page
+      .getByLabel("Mensagem para o assistente")
+      .fill("Quais demandas estão abertas?");
+    await page.getByRole("button", { name: "Enviar mensagem" }).click();
+    await page
+      .getByRole("button", { name: "Limpar conversa" })
+      .and(page.locator(":enabled"))
+      .waitFor({ timeout: 300000 });
+    const answer = await page.locator(".message.assistant").last();
+    if (await page.locator(".message.error").count())
+      throw new Error(`Chat falhou: ${await answer.innerText()}`);
+    const text = await answer.innerText();
+    if (!/integração/i.test(text))
+      throw new Error(`Resposta sem a demanda criada: ${text}`);
+    console.log(`Chat com o modelo local: ${text.replace(/\s+/g, " ")}`);
+  } else console.log("Chat não testado: modelo local indisponível");
+  // Personalização: nome da frente, perfil e cores persistem após recarregar.
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Configurações", exact: true })
+    .click();
+  await page.getByLabel("Frente 2", { exact: true }).fill("Loja Teste");
+  await page.getByLabel("Nome", { exact: true }).fill("Marcos Teste");
+  await page.getByRole("button", { name: "Floresta" }).click();
+  await page.getByRole("button", { name: "Salvar personalização" }).click();
+  await page.getByText("Personalização salva.", { exact: true }).waitFor();
+  await page.reload();
+  await page.getByText("Backend local conectado").waitFor();
+  await page.getByRole("button", { name: "Loja Teste", exact: true }).waitFor();
+  await page.locator(".sidebar-foot").getByText("Marcos Teste").waitFor();
+  const primary = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue("--navy").trim(),
+  );
+  if (primary.toUpperCase() !== "#14342B")
+    throw new Error(`Cor principal não aplicada: ${primary}`);
   await page
     .locator("nav")
     .getByRole("button", { name: /Demandas/ })

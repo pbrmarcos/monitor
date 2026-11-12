@@ -19,7 +19,8 @@ import { api, stages } from "./api";
 import { DemandModal, DemandSheet } from "./DemandModal";
 import { Demands } from "./pages/Demands";
 import { Emails } from "./pages/Emails";
-import { AssistantHeader, Chat, Files, Social } from "./pages/Other";
+import { AssistantHeader, Chat, Files, useChat } from "./pages/Other";
+import { Social } from "./pages/Social";
 import { Sites } from "./pages/Sites";
 import { Overview } from "./pages/Overview";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -32,7 +33,7 @@ import {
   pages,
   useMonitor,
 } from "./store";
-import { Callout } from "./ui";
+import { Avatar, Callout, frontLabel } from "./ui";
 
 export { DemandModal };
 
@@ -65,7 +66,7 @@ const nav: Record<Page, { icon: typeof Mail; title: string; lead: string }> = {
   "Redes sociais": {
     icon: Activity,
     title: "Acompanhe suas conexões.",
-    lead: "Seguidores, engajamento e mensagens pendentes.",
+    lead: "Seguidores, posts e stories dos seus perfis.",
   },
   Arquivos: {
     icon: Folder,
@@ -75,12 +76,12 @@ const nav: Record<Page, { icon: typeof Mail; title: string; lead: string }> = {
   Assistente: {
     icon: MessageSquare,
     title: "Pense junto com seu assistente.",
-    lead: "Perguntas sobre seus dados, respondidas neste computador.",
+    lead: "Perguntas sobre suas demandas, e-mails e lembretes, respondidas neste computador.",
   },
   Configurações: {
     icon: Settings,
     title: "Do seu jeito.",
-    lead: "Pasta de arquivos, contas, regras e IA local.",
+    lead: "Pasta de arquivos, contas, IA local, aparência e atualizações.",
   },
 };
 const withFronts: Page[] = [
@@ -97,6 +98,7 @@ const withSearch: Page[] = ["Visão geral", "Demandas", "Arquivos"];
 export default function App() {
   const m = useMonitor();
   const [history, setHistory] = useState<HistoryEvent[]>([]);
+  const chat = useChat(m);
   const { detail, connected } = m;
   useEffect(() => {
     setHistory([]);
@@ -155,10 +157,10 @@ export default function App() {
             {m.connected ? "Backend local conectado" : "Prévia da interface"}
           </div>
           <div>
-            <span className="avatar">M</span>
+            <Avatar src={m.prefs.avatar} name={m.prefs.name} />
             <span>
-              <strong>Marcos</strong>
-              Seu espaço pessoal
+              <strong>{m.prefs.name}</strong>
+              {m.prefs.tagline}
             </span>
           </div>
         </div>
@@ -250,7 +252,7 @@ export default function App() {
                         aria-pressed={m.front === n}
                         onClick={() => m.setFront(n)}
                       >
-                        {n === 0 ? "Todas as frentes" : `Frente 0${n}`}
+                        {n === 0 ? "Todas as frentes" : frontLabel(n)}
                       </button>
                     ))}
                   </div>
@@ -280,7 +282,7 @@ export default function App() {
               {m.page === "Arquivos" && <Files m={m} />}
               {m.page === "Assistente" && (
                 <section className="panel full-chat">
-                  <Chat />
+                  <Chat chat={chat} />
                 </section>
               )}
               {m.page === "Configurações" && <SettingsPage m={m} />}
@@ -291,7 +293,7 @@ export default function App() {
       {overview && (
         <aside className="assistant" aria-label="Assistente">
           <AssistantHeader />
-          <Chat />
+          <Chat chat={chat} />
         </aside>
       )}
       {m.notice && (

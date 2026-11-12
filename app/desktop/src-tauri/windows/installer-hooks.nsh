@@ -70,6 +70,13 @@ Function MonitorFilesPageLeave
   ${EndIf}
 FunctionEnd
 
+!macro NSIS_HOOK_PREINSTALL
+  ; O backend roda como processo separado e manteria o executável aberto durante a atualização.
+  nsExec::Exec 'taskkill /F /IM monitor-backend.exe'
+  Pop $0
+  Sleep 500
+!macroend
+
 !macro NSIS_HOOK_POSTINSTALL
   ; Grava a escolha para o aplicativo ler na primeira execução.
   ${If} $MonitorFilesDir != ""

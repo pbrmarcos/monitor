@@ -10,8 +10,10 @@ Situação em 12/11/2026. Detalhes de cada verificação em `VALIDATION.md`; reg
 | 3 | Lembretes: agendamento persistente, notificações do Windows, resumo diário às 7h30 | Agenda, central, resumo e ponte nativa implementados; testes e compilação NSIS/MSI aprovados. Exibição e clique dos avisos no aplicativo instalado pendentes de validação manual |
 | 4 | Sites e relay: formulários, deduplicação, verificações, incidentes, monitor externo | Primeira entrega: checagens locais, SSL, incidentes, relay durável, revisão de contatos e deduplicação conservadora. Pendentes implantação real, teste sintético semanal, métricas do host e monitor externo independente |
 | 5 | Arquivos: catálogo da pasta, extração de texto, busca, classificação | Pendente (pasta e backup já entregues em 2b) |
-| 6 | Assistente: consultas ao banco, fontes citadas, ações com confirmação | Pendente |
-| 7 | Redes sociais: provedores oficiais, snapshots, mensagens, Discord opcional | Pendente |
+| 6 | Assistente: consultas ao banco, fontes citadas, ações com confirmação | Primeira entrega: chat com o modelo local sobre demandas, e-mails, lembretes e sites, com fontes citadas; testado com o Ollama real. Ações com confirmação e busca em arquivos pendentes |
+| 6b | Google Agenda: demandas com data como eventos na conta do usuário | Implementado e testado com Google simulado. Falta conectar a conta real com a credencial OAuth do usuário (`AGENDA-GOOGLE.md`) |
+| 7 | Redes sociais: provedores oficiais, snapshots, mensagens, Discord opcional | Primeira entrega: perfis do Instagram pela API oficial, coleta horária e cartões com totais e números da semana; testado com Instagram simulado (`REDES-SOCIAIS.md`). Pendentes conexão real, mensagens e WhatsApp (depende de parceiro da Meta) |
+| — | Personalização e atualização: perfil, nomes das frentes, cores, atualização pelo aplicativo | Perfil, frentes e cores implementados e testados. Atualização configurada, mas ainda não compilada nem publicada (`ATUALIZACOES.md`) |
 
 ## Antes de considerar uma fase concluída
 
@@ -35,3 +37,6 @@ Situação em 12/11/2026. Detalhes de cada verificação em `VALIDATION.md`; reg
 - A coleta de e-mail usa consulta a cada 2 minutos; IDLE não foi implementado.
 - Só a caixa de entrada é lida. Outras pastas ficam para quando houver necessidade.
 - A criação automática de lembretes para prazos explícitos depende da Fase 3.
+- A pedido do usuário, demandas com data são enviadas ao Google Agenda. É o único dado do Monitor que sai do computador, e só depois de a conta ser conectada.
+- São sempre quatro frentes; os nomes são editáveis em Configurações.
+- A identidade navy/ciano do briefing passou a ser o padrão de uma paleta personalizável, a pedido do usuário.

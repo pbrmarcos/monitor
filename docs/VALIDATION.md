@@ -2,6 +2,18 @@
 
 Situação em 12/11/2026, versão `0.3.0-alpha.1` (Fases 1 a 3 e pasta de arquivos). Sites, redes sociais, catálogo de arquivos e chat não estão conectados.
 
+## Assistente, Google Agenda e ajustes de uso (0.5.0-alpha.1)
+
+Em 12/11/2026: 46 testes de backend e 3 de componentes passaram; TypeScript e Vite compilaram. O teste visual arrasta um cartão do kanban para outra coluna com o ponteiro, confere que soltar não abre os detalhes e que, em 2560 px, o conteúdo ocupa toda a área entre o menu e o assistente.
+
+- **Ollama real.** Com `qwen3.5:4b-q4_K_M` instalado neste computador, a análise de e-mail e o chat responderam. A primeira chamada levou cerca de 170 s (carga do modelo); as seguintes, 3 s na análise e 1,4 s no chat, com 3,2 GB de VRAM. Num único e-mail de teste o modelo marcou “precisa de ação”, mas classificou um pedido de orçamento como informativo e não extraiu a data; as regras determinísticas cobrem esse caso. A qualidade ainda precisa ser medida com e-mails reais rotulados.
+- **Assistente.** Os testes conferem que o contexto enviado contém as demandas abertas com frente e prazo, exclui demandas encerradas e nunca inclui senhas; cobrem Ollama fora do ar, modelo ausente e o parâmetro `think` recusado.
+- **Google Agenda.** Testado com um Google simulado: autorização com PKCE e `state`, token só no cofre, criação, atualização, recriação de evento apagado, remoção ao encerrar a demanda, repetição sem chamadas quando nada mudou, acesso revogado e modo de demonstração sem tráfego. **Nenhuma conta Google real foi conectada.**
+- **Personalização.** Os testes cobrem perfil, nomes das frentes e cores, incluindo a recusa de cor principal clara, de imagem que não seja PNG/JPEG/WebP e de frente sem nome. O teste integrado troca o nome de uma frente, o perfil e a paleta pela interface e confere que persistem após recarregar. O nome novo da frente chega ao contexto do assistente.
+- **Instagram.** Testado com um Instagram simulado: token só no cofre, foto copiada para o banco, totais, posts, curtidas e comentários da semana, variação de seguidores contra a coleta de 7 dias antes, stories indisponíveis mostrados como ausentes, token expirado e modo de demonstração sem tráfego. **Nenhum perfil real foi conectado**; os nomes dos campos da API vêm da documentação da Meta e não foram conferidos contra o serviço.
+- **Atualização pelo aplicativo.** A chave de assinatura foi gerada e a sintaxe do script de build conferida. **Nada foi compilado nem executado**: o plugin Rust, a assinatura dos instaladores, o manifesto, a publicação da release e a instalação da atualização (incluindo o encerramento do backend pelo instalador) dependem do GitHub Actions e do aplicativo instalado. O `Cargo.lock` versionado não inclui o plugin novo.
+- **Não validado:** build Windows desta versão no GitHub Actions e uso no aplicativo instalado.
+
 ## Agenda (Fase 3)
 
 Testes com relógio controlado cobrem fusos, dias úteis, recuperação após reinício, confirmação de encaminhamento, privacidade, reagendamento, cancelamento, demandas encerradas e geração automática de lembretes de e-mail com ativação explícita. A interface permite criar e concluir um lembrete na demonstração. A integração exercita o scheduler de produção, a API e o SQLite com notificações nativas simuladas.

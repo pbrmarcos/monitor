@@ -11,6 +11,8 @@ jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 30
+    permissions:
+      contents: write # publicar a release nas tags
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,9 +33,40 @@ jobs:
           restore-keys: windows-rust-
       - name: Build and test
         shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: ./scripts/build_windows.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: monitor-windows-installers
           path: dist/**
           if-no-files-found: error
+      # Em tags v*: publica os instaladores e atualiza o manifesto que o aplicativo consulta.
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $files = @(Get-ChildItem dist -File | Where-Object { $_.Extension -in '.exe', '.msi' } | ForEach-Object FullName)
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @files --clobber
+          } else {
+            $notes = "docs/releases/$tag.md"
+            if (Test-Path $notes) { gh release create $tag @files --title "Monitor $tag" --notes-file $notes --prerelease }
+            else { gh release create $tag @files --title "Monitor $tag" --generate-notes --prerelease }
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao publicar a release.' }
+          if (Test-Path dist/latest.json) {
+            gh release view updates *> $null
+            if ($LASTEXITCODE -ne 0) {
+              gh release create updates --title 'Canal de atualizacao' --notes 'Manifesto lido pelo Monitor ao verificar atualizacoes. Nao apague.' --prerelease
+            }
+            gh release upload updates dist/latest.json --clobber
+            if ($LASTEXITCODE -ne 0) { throw 'Falha ao publicar o manifesto de atualizacao.' }
+          } else {
+            Write-Warning 'Sem latest.json: configure o segredo TAURI_SIGNING_PRIVATE_KEY para habilitar a atualizacao pelo aplicativo.'
+          }

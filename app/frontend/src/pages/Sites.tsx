@@ -121,7 +121,7 @@ export function Sites({ m }: { m: Monitor }) {
           {[1, 2, 3, 4]
             .filter((n) => !m.front || m.front === n)
             .map((n) => (
-              <Panel key={n} title={`frente0${n}.example`} action={sample}>
+              <Panel key={n} title={frontLabel(n)} action={sample}>
                 <div className="panel-body">
                   <p>Respondendo · exemplo fictício</p>
                   <dl className="facts">

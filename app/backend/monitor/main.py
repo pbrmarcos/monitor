@@ -21,11 +21,11 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from . import ai, inbox, mail, storage, reminders, agenda_api, sites, forms
+from . import ai, assistant, gcal, inbox, mail, prefs, social, storage, reminders, agenda_api, sites, forms
 from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Event, Setting, Suggestion, as_utc, now
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
-VERSION = '0.4.0-alpha.1'
+VERSION = '0.5.0-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
@@ -74,6 +74,11 @@ class CorrectionInput(BaseModel):
     value: Literal['importante', 'nao_importante']
 
 
+class CalendarClientInput(BaseModel):
+    client_id: str = Field(min_length=10, max_length=200, pattern=r'^[a-zA-Z0-9_.-]+$')
+    client_secret: str = Field(min_length=6, max_length=200)
+
+
 class StorageInput(BaseModel):
     files_dir: str = Field(min_length=1, max_length=400)
 
@@ -94,7 +99,7 @@ def migrate(engine):
         reminder_columns = {row[1] for row in connection.execute(text('PRAGMA table_info(reminder)'))}
         if 'revision' not in reminder_columns:
             connection.execute(text('ALTER TABLE reminder ADD COLUMN revision INTEGER NOT NULL DEFAULT 0'))
-        for version in (1, 2, 3, 4):
+        for version in (1, 2, 3, 4, 5, 6):  # 5: Google Agenda; 6: perfis sociais (create_all)
             connection.execute(text('INSERT OR IGNORE INTO schema_migrations VALUES (:v)'), {'v': version})
 
 
@@ -125,8 +130,8 @@ def seed_demo(db: Session):
          'fornecedor', 'revisar', 'Data ambígua, confira o prazo.', None),
     ]
     for front, sender, subject, body, category, importance, reason, action in samples:
-        account = EmailAccount(front_id=front, address=f'contato@frente0{front}.example', host='imap.example',
-                               username=f'contato@frente0{front}.example', keyring_ref='demo', status='demonstracao')
+        account = EmailAccount(front_id=front, address=f'contato@{('rochacomercial', 'nextlink', 'carteirapronta', 'webq')[front - 1]}.example', host='imap.example',
+                               username=f'contato@{('rochacomercial', 'nextlink', 'carteirapronta', 'webq')[front - 1]}.example', keyring_ref='demo', status='demonstracao')
         db.add(account)
         db.flush()
         message = Email(account_id=account.id, message_id=f'<demo-{front}@example>', sender=sender, subject=subject,
@@ -203,6 +208,8 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
                 scheduler.add_job(lambda: forms.sync(engine, vault), IntervalTrigger(minutes=1), next_run_time=start + timedelta(seconds=4))
                 scheduler.add_job(lambda: inbox.sync_all(engine, vault, connector), IntervalTrigger(minutes=2), next_run_time=start)
                 scheduler.add_job(lambda: inbox.process_queue(engine), IntervalTrigger(seconds=20), next_run_time=start)
+                scheduler.add_job(lambda: gcal.sync(engine, vault), IntervalTrigger(minutes=2), next_run_time=start + timedelta(seconds=12))
+                scheduler.add_job(lambda: social.sync(engine, vault), IntervalTrigger(hours=1), next_run_time=start + timedelta(seconds=20))
                 scheduler.add_job(backup_if_due, IntervalTrigger(hours=3), next_run_time=start + timedelta(seconds=30))
             scheduler.start()
         yield
@@ -215,9 +222,11 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     app.state.token = session_token
     app.state.engine = engine
     app.state.vault = vault
+    app.state.open_browser = gcal.webbrowser.open
     app.include_router(agenda_api.router(engine, session, demo))
     app.include_router(sites.router(engine, session, demo))
     app.include_router(forms.router(engine, session, vault, demo))
+    app.include_router(social.router(engine, session, vault, demo))
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, error):
@@ -236,6 +245,11 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     @app.get('/demands')
     def demands(db: Session = Depends(session)):
         return db.exec(select(Demand).order_by(Demand.id.desc())).all()
+
+    def push_calendar():
+        # Leva a mudança para o Google Agenda sem prender a resposta; sem conta conectada não faz nada.
+        if not demo and vault.get(gcal.TOKEN_REF):
+            threading.Thread(target=gcal.sync, args=(engine, vault), daemon=True).start()
 
     def close_suggestion(db: Session, item: Demand):
         reminders.link_demand(db, item)
@@ -266,6 +280,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
         close_suggestion(db, item)
         db.commit()
         db.refresh(item)
+        push_calendar()
         return item
 
     @app.put('/demands/{identifier}')
@@ -290,6 +305,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
                 db.add(reminder)
         db.commit()
         db.refresh(item)
+        push_calendar()
         return item
 
     @app.delete('/demands/{identifier}', status_code=204)
@@ -307,6 +323,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
             db.add(reminder)
         db.delete(item)
         db.commit()
+        push_calendar()
 
     @app.get('/demands/{identifier}/events')
     def events(identifier: int, db: Session = Depends(session)):
@@ -499,6 +516,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
         db.add(item)
         db.commit()
         db.refresh(demand)
+        push_calendar()
         return demand
 
     @app.post('/suggestions/{identifier}/dismiss', status_code=204)
@@ -512,6 +530,72 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     def ai_status(db: Session = Depends(session)):
         jobs = db.exec(select(AiJob.status)).all()
         return {'pending': sum(status in ('pendente', 'processando') for status in jobs), 'failed': jobs.count('erro')}
+
+    @app.get('/preferences')
+    def preferences(db: Session = Depends(session)):
+        return prefs.read(db)
+
+    @app.put('/preferences')
+    def save_preferences(payload: prefs.Preferences, db: Session = Depends(session)):
+        saved = prefs.save(db, payload)
+        push_calendar()  # o nome da frente aparece no título dos eventos
+        return saved
+
+    # ---- Assistente ---------------------------------------------------------
+
+    @app.post('/assistant/chat')
+    def chat(payload: assistant.ChatInput, db: Session = Depends(session)):
+        if payload.messages[-1].role != 'user':
+            raise HTTPException(400, 'A última mensagem deve ser uma pergunta.')
+        model = inbox.setting(db, 'model', ai.DEFAULT_MODEL)
+        data = assistant.context(db, date.today())
+        history = [message.model_dump() for message in payload.messages[-12:]]
+        return StreamingResponse(assistant.stream(model, data, history), media_type='application/x-ndjson')
+
+    # ---- Google Agenda ------------------------------------------------------
+
+    def real_calendar_only():
+        if demo:
+            raise HTTPException(409, 'A agenda fica indisponível no modo de demonstração.')
+
+    @app.get('/calendar')
+    def calendar(db: Session = Depends(session)):
+        return gcal.status(db, vault)
+
+    @app.put('/calendar/client')
+    def calendar_client(payload: CalendarClientInput, db: Session = Depends(session)):
+        real_calendar_only()
+        try:
+            vault.set(gcal.SECRET_REF, payload.client_secret.strip())
+        except SecretError as error:
+            raise HTTPException(500, str(error)) from None
+        db.merge(Setting(key='google_client_id', value=payload.client_id))
+        db.commit()
+        return gcal.status(db, vault)
+
+    @app.post('/calendar/connect')
+    def calendar_connect():
+        real_calendar_only()
+        try:
+            gcal.start_authorization(engine, vault, app.state.open_browser)
+        except gcal.CalendarError as error:
+            raise HTTPException(400, str(error)) from None
+        return {'ok': True}
+
+    @app.post('/calendar/sync')
+    def calendar_sync(db: Session = Depends(session)):
+        real_calendar_only()
+        if not vault.get(gcal.TOKEN_REF):
+            raise HTTPException(409, 'Conecte primeiro a conta do Google.')
+        result = gcal.sync(engine, vault)
+        if result.get('error'):
+            raise HTTPException(502, result['error'])
+        return {**result, **gcal.status(db, vault)}
+
+    @app.delete('/calendar', status_code=204)
+    def calendar_disconnect():
+        real_calendar_only()
+        gcal.disconnect(engine, vault)
 
     # ---- Pasta de arquivos ------------------------------------------------
 

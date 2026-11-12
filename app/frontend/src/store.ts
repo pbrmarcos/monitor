@@ -10,10 +10,20 @@ import {
   Email,
   Importance,
   Ollama,
+  Preferences,
+  SocialProfile,
   Storage,
   Suggestion,
 } from "./api";
-import { demoDemands, demoEmails, demoSuggestions, today } from "./demo";
+import {
+  demoDemands,
+  demoEmails,
+  demoSocial,
+  demoSuggestions,
+  today,
+} from "./demo";
+import { applyTheme, defaultTheme } from "./theme";
+import { defaultFronts, setFrontNames } from "./ui";
 
 export const pages = [
   "Visão geral",
@@ -31,6 +41,14 @@ export type HistoryEvent = {
   id: number;
   description: string;
   created_at: string;
+};
+
+export const defaultPrefs: Preferences = {
+  name: "Marcos",
+  tagline: "Seu espaço pessoal",
+  avatar: "",
+  fronts: defaultFronts,
+  ...defaultTheme,
 };
 
 export const newDemand = (): Omit<Demand, "id"> => ({
@@ -72,6 +90,14 @@ export function useMonitor() {
   const [detail, setDetail] = useState<Demand | null>(null);
   const [reminderTarget, setReminderTarget] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [prefs, setPrefs] = useState<Preferences>(defaultPrefs);
+  const [social, setSocial] = useState<SocialProfile[]>([]);
+  const [version, setVersion] = useState("");
+  const usePrefs = (value: Preferences) => {
+    setFrontNames(value.fronts);
+    applyTheme(value);
+    setPrefs(value);
+  };
 
   const fail = (e: unknown) => setError((e as Error).message);
 
@@ -97,8 +123,10 @@ export function useMonitor() {
     setError("");
     try {
       await connect();
-      const health = await api<{ demo: boolean }>("/health");
+      const health = await api<{ demo: boolean; version: string }>("/health");
       setPreview(health.demo);
+      setVersion(health.version);
+      usePrefs(await api<Preferences>("/preferences"));
       setDemands(await api<Demand[]>("/demands"));
       setConnected(true);
       const [saved, local, folder] = await Promise.all([
@@ -107,6 +135,7 @@ export function useMonitor() {
         api<Storage>("/storage"),
         refreshInbox(),
       ]);
+      setSocial(health.demo ? demoSocial : await api<SocialProfile[]>("/social"));
       setSettings(saved);
       setOllama(local);
       setStorage(folder);
@@ -172,6 +201,7 @@ export function useMonitor() {
     setDemands(demoDemands);
     setEmails(demoEmails);
     setSuggestions(demoSuggestions);
+    setSocial(demoSocial);
     setPreview(true);
     setError("");
   }
@@ -213,6 +243,15 @@ export function useMonitor() {
       fail(e);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function savePrefs(value: Preferences) {
+    try {
+      usePrefs(await api<Preferences>("/preferences", "PUT", value));
+      setNotice("Personalização salva.");
+    } catch (e) {
+      fail(e);
     }
   }
 
@@ -400,6 +439,11 @@ export function useMonitor() {
     dismissSuggestion,
     refreshInbox,
     refreshDemands,
+    prefs,
+    savePrefs,
+    social,
+    setSocial,
+    version,
   };
 }
 export type Monitor = ReturnType<typeof useMonitor>;

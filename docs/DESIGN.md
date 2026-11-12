@@ -41,7 +41,8 @@ Cores sólidas, sem gradientes e sem tons pastel.
 | `--muted` | `#5C6B80` | Texto secundário |
 | `--danger` `--warning` `--success` | `#C62828` `#B45309` `#15803D` | Estados |
 
-- Ciano nunca é texto sobre branco. Como fundo, leva texto navy.
+- Ciano nunca é texto sobre branco. Como fundo, leva texto `--on-cyan`.
+- **Cores personalizáveis:** o usuário pode trocar `--navy` (cor principal) e `--cyan` (destaque) em Configurações. Use sempre os tokens, nunca os valores. A cor principal também é a cor do texto, por isso só é aceita com contraste de 7:1 contra o branco; `--navy-2`, `--on-cyan` e a linha do menu são derivadas em `theme.ts`. As demais cores não mudam.
 - Estado aparece em texto, borda ou ponto, nunca como fundo colorido de cartão.
 - Um botão principal (navy) por região da tela. Os demais são contornados ou fantasmas.
 - Contraste mínimo AA: 4,5:1 para texto e 3:1 para ícones e bordas de controle.
@@ -52,7 +53,7 @@ Cores sólidas, sem gradientes e sem tons pastel.
 - Entre cartões: 20 px. Dentro do cartão: 20 px nas laterais. Entre um rótulo e seu campo: 8 px. Entre campos: 16 px.
 - Raios: 6 px em selos, 10 px em controles, 14 px em cartões, 16 px em diálogos.
 - Bordas de 1 px. Sombra só em elementos sobrepostos (diálogo, painel lateral, aviso flutuante).
-- Conteúdo com largura máxima de 1360 px, centralizado. Menu de 240 px; assistente de 360 px.
+- O conteúdo ocupa toda a largura entre o menu (240 px) e o assistente (360 px). Só texto corrido tem limite: 72 caracteres por linha em parágrafos e 80 nas mensagens do chat.
 
 ## 4. Controles
 
@@ -71,6 +72,9 @@ Cores sólidas, sem gradientes e sem tons pastel.
 - **Selos:** “Demonstração” para dados fictícios, “Em breve” para o que ainda não foi entregue, selo ciano apenas para o que veio da IA local. A interface não cita números de fase.
 - **Confirmações** aparecem como aviso flutuante por 5 s; **erros** ficam no topo do conteúdo até serem fechados.
 - **Ações destrutivas** pedem confirmação no próprio lugar, com o botão em `--danger`.
+- **Frentes** aparecem sempre pelo nome que o usuário definiu em Configurações, via `frontLabel()`; nunca escreva o nome nem “Frente 01” no componente. O padrão é Rocha Comercial, Nextlink, Carteira Pronta, WebQ.
+- **Cartão de perfil social:** foto redonda de 56 px (ou iniciais), usuário em título, dois totais em 32 px e, abaixo de uma linha, os números dos últimos 7 dias. Variação positiva em `--success`, negativa em `--danger`. Dado indisponível aparece como “—”, nunca como zero.
+- **Arrastar:** use eventos de ponteiro, não o arrastar nativo do HTML, que a janela do aplicativo bloqueia no Windows. O cartão acompanha o cursor, a coluna de destino ganha contorno navy e Esc cancela. Toda ação de arrastar tem um caminho equivalente por botão.
 - **Não mostre o que não funciona:** sem ícones ou botões decorativos sem ação.
 
 ## 6. Larguras

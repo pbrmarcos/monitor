@@ -14,6 +14,8 @@
   --warning: #b45309;
   --success: #15803d;
   --on-navy: #fff;
+  --on-cyan: var(--navy);
+  --sidebar-line: #58708c;
   --on-navy-muted: #b9c9db;
   --focus: #4272a8;
 
@@ -49,7 +51,6 @@
   --control-sm: 36px;
   --sidebar: 240px;
   --assistant: 360px;
-  --content: 1360px;
   --shadow-overlay: 0 24px 64px #0d213a2e;
 
   font-family: var(--font-body);
@@ -277,7 +278,7 @@ textarea::placeholder {
 .badge.ai {
   border-color: var(--cyan);
   background: var(--cyan);
-  color: var(--navy);
+  color: var(--on-cyan);
   font-family: var(--font-mono);
   font-size: var(--text-label);
   letter-spacing: 0.08em;
@@ -441,11 +442,33 @@ textarea::placeholder {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border: 1px solid #58708c;
+  overflow: hidden;
+  border: 1px solid var(--sidebar-line);
   border-radius: 50%;
-  color: var(--on-navy);
   font-size: var(--text-small);
   font-weight: 600;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sidebar .avatar {
+  color: var(--on-navy);
+}
+.main .avatar {
+  border-color: var(--border);
+  background: var(--subtle);
+}
+.avatar.lg {
+  width: 56px;
+  height: 56px;
+  font-size: var(--text-title);
+}
+td .avatar {
+  display: inline-grid;
+  margin-right: var(--s2);
+  vertical-align: middle;
 }
 .main {
   min-width: 0;
@@ -454,8 +477,6 @@ textarea::placeholder {
 .content {
   display: grid;
   gap: var(--s5);
-  max-width: var(--content);
-  margin: 0 auto;
 }
 .content > * {
   min-width: 0;
@@ -809,8 +830,9 @@ td svg {
   overflow-x: auto;
 }
 .kanban-column {
-  flex: 1 0 248px;
-  max-width: 300px;
+  flex: 1 0 232px;
+  min-height: 160px;
+  border: 1px solid transparent;
   padding: var(--s2);
   border-radius: var(--radius-card);
   background: var(--subtle);
@@ -837,6 +859,32 @@ td svg {
   text-align: left;
   white-space: normal;
   cursor: grab;
+}
+.kanban-card {
+  touch-action: none;
+  user-select: none;
+}
+.kanban-card.lifted {
+  opacity: 0.35;
+}
+.kanban-ghost {
+  border: 1px solid var(--navy);
+  border-radius: var(--radius-control);
+  position: fixed;
+  z-index: 60;
+  margin: 0;
+  box-shadow: var(--shadow-overlay);
+  cursor: grabbing;
+  pointer-events: none;
+  transform: rotate(1.5deg);
+}
+.kanban-column.target {
+  border-color: var(--navy);
+  background: var(--divider);
+}
+.kanban.dragging,
+.kanban.dragging * {
+  cursor: grabbing;
 }
 .kanban-card strong {
   font-size: var(--text-body);
@@ -1043,6 +1091,164 @@ hr {
   border-top: 1px solid var(--divider);
 }
 
+/* Redes sociais */
+.social-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--s5);
+}
+.social-card {
+  display: grid;
+  gap: var(--s4);
+  align-content: start;
+  padding: var(--s5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.social-card > header {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.social-card > header > div {
+  flex: 1;
+  min-width: 0;
+  margin-left: var(--s1);
+}
+.social-card > header strong {
+  display: block;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  text-overflow: ellipsis;
+}
+.social-card > header small,
+.social-card > footer {
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.social-totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s4);
+}
+.social-totals strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.social-totals span {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.social-week {
+  display: grid;
+  gap: var(--s2);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--divider);
+}
+.social-week dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s3) var(--s4);
+  margin: 0;
+}
+.social-week dt {
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.social-week dd {
+  margin: 0;
+  font-size: var(--text-subtitle);
+  font-weight: 600;
+}
+.social-week dd.up {
+  color: var(--success);
+}
+.social-week dd.down {
+  color: var(--danger);
+}
+.social-card > footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+.social-card > footer > span {
+  flex: 1;
+  min-width: 160px;
+}
+
+/* Personalização */
+.personal {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s6);
+  align-items: start;
+}
+.personal > section {
+  display: grid;
+  gap: var(--s4);
+  align-content: start;
+}
+.personal > section > p {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.personal-actions {
+  grid-column: 1 / -1;
+  padding-top: var(--s4);
+  border-top: 1px solid var(--divider);
+}
+.profile-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+}
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s2);
+}
+.swatch {
+  justify-content: flex-start;
+  min-height: var(--control);
+  padding: 0 var(--s2);
+  font-weight: 500;
+}
+.swatch > span {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-chip);
+}
+.swatch i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+input[type="color"] {
+  padding: var(--s1);
+  cursor: pointer;
+}
+.updates {
+  display: grid;
+  gap: var(--s2);
+}
+.updates .split > span > * {
+  display: block;
+}
+.updates small,
+.updates > p {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
 /* Assistente */
 .assistant {
   position: sticky;
@@ -1094,6 +1300,9 @@ hr {
   overflow-y: auto;
 }
 .message {
+  max-width: 80ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   padding: var(--s3);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
@@ -1104,6 +1313,18 @@ hr {
   max-width: 85%;
   border-color: var(--subtle);
   background: var(--subtle);
+}
+.message.error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.chat-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s3);
+  color: var(--muted);
+  font-size: var(--text-caption);
 }
 .prompts {
   display: grid;
@@ -1133,13 +1354,7 @@ hr {
 .composer textarea:focus-visible {
   outline: 0;
 }
-.chat > small {
-  color: var(--muted);
-  font-size: var(--text-caption);
-  text-align: center;
-}
 .panel.full-chat {
-  max-width: 880px;
   height: calc(100vh - 260px);
   min-height: 480px;
 }
@@ -1313,6 +1528,7 @@ dialog.modal::backdrop,
   }
   .grid-2,
   .settings,
+  .personal,
   .steps {
     grid-template-columns: 1fr;
   }

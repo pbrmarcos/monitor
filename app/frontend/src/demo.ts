@@ -1,8 +1,47 @@
-import type { Analysis, Demand, Email, Suggestion } from "./api";
+import type {
+  Analysis,
+  Demand,
+  Email,
+  SocialProfile,
+  Suggestion,
+} from "./api";
 
 export const today = () => new Date().toLocaleDateString("en-CA");
 const hoursAgo = (hours: number) =>
   new Date(Date.now() - hours * 3600000).toISOString();
+
+const profile = (
+  id: number,
+  username: string,
+  name: string,
+  followers: number,
+  posts: number,
+  week: [number, number, number, number, number],
+): SocialProfile => ({
+  id,
+  front_id: id,
+  network: "instagram",
+  username,
+  name,
+  avatar: "",
+  status: "ok",
+  status_detail: "",
+  last_sync: hoursAgo(1),
+  followers,
+  posts,
+  followers_change: week[0],
+  change_days: 7,
+  posts_week: week[1],
+  stories_week: week[2],
+  likes_week: week[3],
+  comments_week: week[4],
+});
+export const demoSocial: SocialProfile[] = [
+  profile(1, "rocha.exemplo", "Rocha Comercial", 2480, 214, [124, 3, 9, 412, 37]),
+  profile(2, "nextlink.exemplo", "Nextlink", 1820, 156, [68, 2, 5, 268, 19]),
+  profile(3, "carteira.exemplo", "Carteira Pronta", 965, 88, [-4, 1, 0, 97, 6]),
+  profile(4, "webq.exemplo", "WebQ", 3210, 302, [146, 4, 12, 655, 48]),
+];
 
 export const demoDemands: Demand[] = [
   {
@@ -84,7 +123,7 @@ const email = (
 ): Email => ({
   id,
   account_id: front,
-  account: `contato@frente0${front}.example`,
+  account: `contato@${["rochacomercial", "nextlink", "carteirapronta", "webq"][front - 1]}.example`,
   front_id: front,
   sender,
   subject,

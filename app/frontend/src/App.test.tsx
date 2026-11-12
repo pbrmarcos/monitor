@@ -15,7 +15,7 @@ describe("Monitor interface", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByText("Explorar demonstração"));
-    await user.click(screen.getByRole("button", { name: "Frente 02" }));
+    await user.click(screen.getByRole("button", { name: "Nextlink" }));
     expect(screen.getByText("Revisar briefing do projeto")).toBeInTheDocument();
     expect(
       screen.queryByText("Preparar proposta para Ana"),

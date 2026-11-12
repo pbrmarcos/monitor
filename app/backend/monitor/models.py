@@ -5,6 +5,10 @@ from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
+# Nomes padrão das frentes; o usuário pode trocá-los em Configurações (prefs.front_names).
+FRONTS = {1: 'Rocha Comercial', 2: 'Nextlink', 3: 'Carteira Pronta', 4: 'WebQ'}
+
+
 def now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -184,3 +188,47 @@ class FormEntry(SQLModel, table=True):
     received_at: datetime
     status: str = 'pendente'
     demand_id: int | None = None
+
+
+class SocialProfile(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    front_id: int
+    network: str = 'instagram'
+    account_id: str = Field(unique=True)
+    username: str
+    name: str = ''
+    avatar: str = ''  # data URI; o endereço da foto no Instagram expira
+    keyring_ref: str
+    token_at: datetime | None = None
+    stories_ok: bool = True
+    status: str = 'aguardando'
+    status_detail: str = ''
+    last_sync: datetime | None = None
+
+
+class SocialSnapshot(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint('profile_id', 'day'),)
+    id: int | None = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    day: date
+    followers: int = 0
+    media_count: int = 0
+
+
+class SocialMedia(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint('profile_id', 'media_id'),)
+    id: int | None = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    media_id: str
+    kind: str  # post | story
+    published_at: datetime
+    likes: int = 0
+    comments: int = 0
+
+
+class CalendarLink(SQLModel, table=True):
+    """Evento do Google Agenda que espelha uma demanda."""
+    demand_id: int = Field(primary_key=True)
+    event_id: str
+    fingerprint: str = ''
+    synced_at: datetime | None = None

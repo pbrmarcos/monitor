@@ -16,9 +16,9 @@ from .models import Notice, Site, SiteCheck, SiteIncident, as_utc, now
 _lock = threading.Lock()
 SUGGESTIONS = [
     ('Rocha Comercial', 'https://rochacomercial.com.br', 1),
-    ('Carteira Pronta', 'https://www.carteirapronta.com.br', 2),
-    ('WebQ', 'https://www.webq.com.br', 3),
-    ('Nextlink', 'http://www.nextlink.com.br', 4),
+    ('Nextlink', 'http://www.nextlink.com.br', 2),
+    ('Carteira Pronta', 'https://www.carteirapronta.com.br', 3),
+    ('WebQ', 'https://www.webq.com.br', 4),
 ]
 
 

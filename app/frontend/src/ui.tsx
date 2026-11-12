@@ -2,8 +2,44 @@ import type { LucideIcon } from "lucide-react";
 import { Inbox, Info } from "lucide-react";
 import type { ReactNode } from "react";
 
+// Nomes padrão das frentes (FRONTS em app/backend/monitor/models.py). O usuário
+// pode trocá-los em Configurações; a store chama setFrontNames ao carregar.
+export const defaultFronts = [
+  "Rocha Comercial",
+  "Nextlink",
+  "Carteira Pronta",
+  "WebQ",
+];
+let fronts = defaultFronts;
+export const setFrontNames = (names: string[]) => {
+  fronts = names.length === 4 ? names : defaultFronts;
+};
 export const frontLabel = (front: number) =>
-  `Frente ${String(front).padStart(2, "0")}`;
+  fronts[front - 1] ?? `Frente ${front}`;
+
+const initials = (name: string) =>
+  name
+    .replace(/^@/, "")
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("") || "?";
+export function Avatar({
+  src,
+  name,
+  size = "",
+}: {
+  src?: string;
+  name: string;
+  size?: "" | "lg";
+}) {
+  return (
+    <span className={`avatar ${size}`} aria-hidden>
+      {src ? <img src={src} alt="" /> : initials(name)}
+    </span>
+  );
+}
 
 export const dateLabel = (date: string | null) =>
   date

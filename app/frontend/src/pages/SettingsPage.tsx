@@ -15,11 +15,13 @@ import {
   AccountInput,
   api,
   AppSettings,
+  Calendar,
   Ollama,
   pullModel,
   Storage,
 } from "../api";
 import type { Monitor } from "../store";
+import { Personalization, Updates } from "./Personalization";
 import { Callout, frontLabel, Panel, soon } from "../ui";
 
 const OLLAMA_URL = "https://ollama.com/download/windows";
@@ -47,6 +49,7 @@ export function SettingsPage({ m }: { m: Monitor }) {
       <FilesFolder m={m} />
       <Accounts m={m} />
       <LocalAi m={m} />
+      <GoogleCalendar m={m} />
       <Rules m={m} />
       <Panel title="Lembretes e resumo diário">
         <div className="panel-body">
@@ -57,7 +60,8 @@ export function SettingsPage({ m }: { m: Monitor }) {
           <button onClick={() => m.setPage("Lembretes")}>Abrir agenda</button>
         </div>
       </Panel>
-      <Application />
+      <Personalization m={m} />
+      <Application version={m.version} />
     </div>
   );
 }
@@ -453,6 +457,227 @@ function Rules({ m }: { m: Monitor }) {
   );
 }
 
+const GOOGLE_CONSOLE = "https://console.cloud.google.com/apis/credentials";
+const openExternal = (url: string) =>
+  isTauri() ? void openUrl(url) : window.open(url, "_blank", "noopener");
+
+function GoogleCalendar({ m }: { m: Monitor }) {
+  const [state, setState] = useState<Calendar | null>(null);
+  const [clientId, setClientId] = useState("");
+  const [secret, setSecret] = useState("");
+  const [waiting, setWaiting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const { connected, setNotice } = m;
+  const refresh = () =>
+    api<Calendar>("/calendar").then((value) => {
+      setState(value);
+      return value;
+    });
+  useEffect(() => {
+    if (!connected) return;
+    api<Calendar>("/calendar")
+      .then((value) => {
+        setState(value);
+        setClientId(value.client_id);
+      })
+      .catch(() => {});
+  }, [connected]);
+  // Enquanto o navegador está na tela do Google, confere se a conexão terminou.
+  useEffect(() => {
+    if (!waiting) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      api<Calendar>("/calendar")
+        .then((value) => {
+          setState(value);
+          if (value.connected) {
+            setWaiting(false);
+            setNotice("Agenda conectada. Enviando as demandas…");
+            void api("/calendar/sync", "POST")
+              .then(() => api<Calendar>("/calendar"))
+              .then(setState)
+              .catch(() => {});
+          } else if (value.error || tries > 150) setWaiting(false);
+        })
+        .catch(() => {});
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [waiting, setNotice]);
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await action();
+      await refresh();
+    } catch (e) {
+      m.fail(e);
+      await refresh().catch(() => {});
+    } finally {
+      setBusy(false);
+    }
+  };
+  const disabled = !m.connected || m.preview || busy;
+  return (
+    <Panel
+      title="Google Agenda"
+      action={
+        <span className={`badge ${state?.connected ? "success" : ""}`}>
+          {state?.connected ? "Conectada" : "Não conectada"}
+        </span>
+      }
+    >
+      <div className="panel-body">
+        <p>
+          Cada demanda aberta com prazo ou data de retorno vira um evento de
+          dia inteiro na sua agenda. O Monitor só grava os próprios eventos;
+          não lê nem altera os seus compromissos. Vão para o Google o título,
+          a frente, a etapa e a próxima ação.
+        </p>
+        {state?.error && (
+          <Callout tone="error" role="alert">
+            {state.error}
+          </Callout>
+        )}
+        {state?.connected ? (
+          <>
+            <dl className="facts">
+              <div>
+                <dt>Conta</dt>
+                <dd>{state.email || "Conta Google"}</dd>
+              </div>
+              <div>
+                <dt>Eventos na agenda</dt>
+                <dd>{state.events}</dd>
+              </div>
+              <div>
+                <dt>Última sincronização</dt>
+                <dd>
+                  {state.last_sync
+                    ? new Date(state.last_sync).toLocaleString("pt-BR", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })
+                    : "Ainda não houve"}
+                </dd>
+              </div>
+            </dl>
+            <div className="button-row">
+              <button
+                className="primary"
+                disabled={disabled}
+                onClick={() =>
+                  void run(async () => {
+                    await api("/calendar/sync", "POST");
+                    m.setNotice("Agenda sincronizada.");
+                  })
+                }
+              >
+                Sincronizar agora
+              </button>
+              {confirming ? (
+                <>
+                  <button
+                    className="danger"
+                    disabled={disabled}
+                    onClick={() =>
+                      void run(async () => {
+                        await api("/calendar", "DELETE");
+                        setConfirming(false);
+                        m.setNotice(
+                          "Agenda desconectada. Os eventos já criados continuam nela.",
+                        );
+                      })
+                    }
+                  >
+                    Confirmar desconexão
+                  </button>
+                  <button onClick={() => setConfirming(false)}>Cancelar</button>
+                </>
+              ) : (
+                <button disabled={disabled} onClick={() => setConfirming(true)}>
+                  Desconectar
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <p>
+              O Google exige uma credencial sua, criada uma única vez: no
+              Google Cloud, ative a API Google Calendar e crie um ID do cliente
+              OAuth do tipo “App para computador”. O passo a passo está em
+              docs/AGENDA-GOOGLE.md.
+            </p>
+            <label className="field">
+              ID do cliente
+              <input
+                value={clientId}
+                placeholder="…apps.googleusercontent.com"
+                onChange={(e) => setClientId(e.target.value.trim())}
+                disabled={disabled}
+              />
+            </label>
+            <label className="field">
+              Chave secreta do cliente
+              <input
+                type="password"
+                value={secret}
+                autoComplete="off"
+                placeholder={
+                  state?.configured ? "Guardada no Windows" : undefined
+                }
+                onChange={(e) => setSecret(e.target.value)}
+                disabled={disabled}
+              />
+            </label>
+            <div className="button-row">
+              <button
+                className="primary"
+                disabled={
+                  disabled ||
+                  waiting ||
+                  !(secret ? clientId : state?.configured)
+                }
+                onClick={() =>
+                  void run(async () => {
+                    if (secret)
+                      await api("/calendar/client", "PUT", {
+                        client_id: clientId,
+                        client_secret: secret,
+                      });
+                    setSecret("");
+                    await api("/calendar/connect", "POST");
+                    setWaiting(true);
+                  })
+                }
+              >
+                {waiting ? "Aguardando o Google…" : "Conectar conta Google"}
+              </button>
+              {waiting && (
+                <button onClick={() => setWaiting(false)}>Cancelar</button>
+              )}
+            </div>
+            {waiting && (
+              <p role="status" className="small">
+                Conclua a autorização na janela do navegador que se abriu.
+              </p>
+            )}
+            <button
+              className="link"
+              style={{ justifySelf: "start" }}
+              onClick={() => openExternal(GOOGLE_CONSOLE)}
+            >
+              Abrir credenciais do Google Cloud
+              <ArrowUpRight size={14} />
+            </button>
+          </>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
 function LocalAi({ m }: { m: Monitor }) {
   const [model, setModel] = useState(m.settings.model);
   const [download, setDownload] = useState("");
@@ -547,7 +772,7 @@ function LocalAi({ m }: { m: Monitor }) {
   );
 }
 
-function Application() {
+function Application({ version }: { version: string }) {
   const [autostart, setAutostart] = useState(false);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -587,12 +812,13 @@ function Application() {
           “Sair” no menu da bandeja para encerrar.
         </p>
         <hr />
+        <Updates version={version} />
+        <hr />
         <h3>Próximas integrações</h3>
         {[
           "Monitor externo e testes dos formulários",
           "Catálogo de arquivos do OneDrive",
-          "Assistente com consulta aos seus dados",
-          "Instagram e WhatsApp",
+          "WhatsApp e mensagens do Instagram",
         ].map((name) => (
           <div className="split" key={name}>
             <span>{name}</span>

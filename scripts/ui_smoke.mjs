@@ -42,6 +42,21 @@ await page.getByLabel("Etapa", { exact: true }).selectOption("acompanhar");
 await page.getByLabel(/Data de retorno/).fill("2026-12-15");
 await page.getByRole("button", { name: "Salvar demanda" }).click();
 await shot("kanban");
+// Arrastar um cartão para outra coluna com o ponteiro.
+const card = page.locator(".kanban-card", { hasText: "Preparar proposta para Ana" });
+const destination = page.getByRole("region", { name: "Proposta enviada" });
+const from = await card.boundingBox();
+const to = await destination.boundingBox();
+await page.mouse.move(from.x + 30, from.y + 20);
+await page.mouse.down();
+await page.mouse.move(from.x + 60, from.y + 40, { steps: 4 });
+await page.mouse.move(to.x + to.width / 2, to.y + 80, { steps: 12 });
+await destination.and(page.locator(".target")).waitFor();
+await shot("kanban-dragging");
+await page.mouse.up();
+await destination.getByText("Preparar proposta para Ana").waitFor();
+if (await page.locator(".sheet, dialog[open]").count())
+  throw new Error("Soltar o cartão não deve abrir os detalhes");
 await go("E-mails");
 await page.getByRole("tab", { name: /Revisar/ }).click();
 await page.getByText("data a confirmar").waitFor();
@@ -61,13 +76,25 @@ for (const name of [
   if (size < 11) throw new Error(`${name}: texto de ${size}px`);
   await shot(name.toLowerCase().replace(/\W+/g, "-"));
 }
+await go("Redes sociais");
+if ((await page.locator(".social-card").count()) !== 4)
+  throw new Error("Esperados quatro cartões de perfis na demonstração");
 await go("Visão geral");
 await page.setViewportSize({ width: 2560, height: 1392 });
 await shot("overview-wide");
+// Em tela larga o conteúdo ocupa toda a área entre o menu e o assistente.
+const used = await page.evaluate(() => {
+  const box = (selector) => document.querySelector(selector).getBoundingClientRect();
+  return box(".assistant").left - box(".content").right;
+});
+if (used > 48) throw new Error(`Sobram ${used}px à direita do conteúdo`);
+await go("Demandas");
+await shot("kanban-wide");
+await go("Visão geral");
 await page.setViewportSize({ width: 820, height: 1000 });
 await shot("compact");
 if (errors.length) throw new Error(errors.join("\n"));
 console.log(
-  "UI smoke: sugestão, criação, edição, e-mails, agenda, navegação e três larguras OK",
+  "UI smoke: sugestão, criação, edição, arrastar no kanban, e-mails, agenda, navegação e três larguras OK",
 );
 await browser.close();

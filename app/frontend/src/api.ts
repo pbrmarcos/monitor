@@ -157,6 +157,67 @@ export async function api<T>(
   }
   return response.status === 204 ? (undefined as T) : response.json();
 }
+export type Preferences = {
+  name: string;
+  tagline: string;
+  avatar: string;
+  fronts: string[];
+  primary: string;
+  accent: string;
+};
+export type SocialProfile = {
+  id: number;
+  front_id: number;
+  network: string;
+  username: string;
+  name: string;
+  avatar: string;
+  status: string;
+  status_detail: string;
+  last_sync: string | null;
+  followers: number | null;
+  posts: number | null;
+  followers_change: number | null;
+  change_days: number;
+  posts_week: number | null;
+  stories_week: number | null;
+  likes_week: number | null;
+  comments_week: number | null;
+};
+export type Calendar = {
+  client_id: string;
+  configured: boolean;
+  connected: boolean;
+  email: string;
+  last_sync: string | null;
+  error: string;
+  events: number;
+};
+/** Conversa com o modelo local; `onDelta` recebe cada trecho da resposta. */
+export async function chatStream(
+  messages: { role: string; content: string }[],
+  onDelta: (text: string) => void,
+) {
+  const response = await request("/assistant/chat", "POST", { messages });
+  if (!response.ok || !response.body)
+    throw new Error("Não foi possível enviar a pergunta.");
+  const reader = response.body.getReader(),
+    decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const item = JSON.parse(line);
+      if (item.error) throw new Error(item.error);
+      if (item.delta) onDelta(item.delta);
+    }
+    if (done) break;
+  }
+}
 export async function pullModel(
   model: string,
   onProgress: (message: string) => void,
