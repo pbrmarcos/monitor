@@ -2,7 +2,7 @@
 
 Central de operação pessoal com IA local para reunir demandas, e-mails, acompanhamento comercial, sites, redes sociais e arquivos.
 
-**Estado: especificação e planejamento. Ainda não há aplicativo funcional ou instalador.** A versão `v0.0.1` registra o início público do projeto; nenhuma integração está implementada.
+**Estado: Fase 1 em desenvolvimento.** A versão `v0.0.1` registra a especificação inicial. O código atual implementa demandas, persistência, kanban e oito telas. As integrações de e-mail, sites, redes, arquivos e chat ainda são demonstrações. Consulte [validação](docs/VALIDATION.md).
 
 ## Objetivo
 
@@ -36,7 +36,7 @@ scripts/         Build Windows, avaliações e ferramentas futuras
 docs/            Planejamento e documentação
 ```
 
-Essas pastas estão reservadas para implementação; não contêm aplicações executáveis nesta versão.
+Backend, frontend e desktop contêm a implementação inicial. O relay permanece reservado para a Fase 4.
 
 O aplicativo será instalável no Windows. O Ollama executará a IA no PC; o relay receberá eventos enquanto o PC estiver desligado. Monitoramento externo deverá detectar indisponibilidade do próprio VPS.
 
@@ -44,7 +44,29 @@ Dados ativos ficarão fora de pastas sincronizadas. Credenciais serão mantidas 
 
 ## Desenvolvimento
 
-A Fase 1 ainda não foi iniciada. Não há comandos de execução, testes ou build disponíveis. As instruções de instalação serão adicionadas quando houver código validado; não há necessidade de fornecer credenciais para examinar este repositório.
+Requisitos Windows: Node 22+, Python 3.12, Rust estável, C++ Build Tools e WebView2 ([pré-requisitos Tauri](https://v2.tauri.app/start/prerequisites/)).
+
+```powershell
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install -e 'app/backend[dev]'
+npm ci
+npm run tauri -- dev
+```
+
+O Tauri inicia o backend automaticamente. `MONITOR_PYTHON` permite indicar outro interpretador. Para dados fictícios, defina `$env:MONITOR_DEMO='1'` antes de abrir. Banco real em `%LOCALAPPDATA%\Monitor\monitor.db`; demo em `demo.db`, separado. Dados ativos não ficam no OneDrive.
+
+`npm run dev` inicia apenas uma prévia no navegador. Clique em **Explorar demonstração**; alterações nessa prévia ficam em memória e se perdem ao recarregar. A prévia não acessa o banco real.
+
+```powershell
+.venv/Scripts/python.exe -m pytest app/backend/tests
+npm test
+npm run build
+./scripts/build_windows.ps1 -Python .venv/Scripts/python.exe
+```
+
+O script gera o sidecar com PyInstaller, testa o executável e compila os instaladores NSIS/MSI em `dist/`. O workflow Windows desktop faz o mesmo no GitHub Actions. Os instaladores desta etapa não têm assinatura Authenticode nem atualizador ativo.
+
+Ollama é separado do instalador. Nas configurações, verifique a disponibilidade, ajuste o modelo e solicite seu download. O padrão do briefing é configurável e precisa ser validado no hardware. Nenhum chat ou análise real de e-mail está ativo nesta fase. Credenciais IMAP virão na Fase 2; backup e catálogo do OneDrive na Fase 5.
 
 ## Contribuir
 

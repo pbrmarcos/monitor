@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Monitor", "version": "0.1.0-alpha.1", "identifier": "io.monitor.desktop",
+  "build": {"beforeDevCommand": "npm run dev --workspace @monitor/frontend", "beforeBuildCommand": "npm run build --workspace @monitor/frontend", "devUrl": "http://127.0.0.1:1420", "frontendDist": "../../frontend/dist"},
+  "app": {
+    "windows": [{"label":"main","title":"Monitor — Sua central de operação","width":1440,"height":960,"minWidth":800,"minHeight":650}],
+    "security": {"csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; object-src 'none'; frame-src 'none'"}
+  },
+  "bundle": {"active":true,"targets":["nsis","msi"],"externalBin":["binaries/monitor-backend"],"icon":["icons/icon.ico"],"shortDescription":"Central de operação pessoal com IA local","windows":{"nsis":{"displayLanguageSelector":false,"languages":["PortugueseBR"]}}}
+}

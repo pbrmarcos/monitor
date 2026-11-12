@@ -1,6 +1,6 @@
 # Segurança
 
-Esta versão contém somente especificação e documentação. Não há aplicação pronta para uso em produção.
+Esta versão contém uma base desktop em desenvolvimento. Não está pronta para uso em produção; integrações permanecem pendentes.
 
 Não publique senhas, tokens, e-mails reais, anexos de clientes ou bancos de dados em issues e pull requests. Para uma vulnerabilidade, utilize a comunicação privada de segurança do GitHub se estiver disponível. Não exponha detalhes exploráveis em uma issue pública.
 

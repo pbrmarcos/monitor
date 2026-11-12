@@ -1,6 +1,6 @@
 # Roteiro de entrega
 
-Todas as fases estão pendentes. A release v0.0.1 registra a especificação inicial.
+A Fase 1 está em desenvolvimento; as demais estão pendentes. A release v0.0.1 registra a especificação inicial, anterior ao código. Consulte `VALIDATION.md` para validação e pendências.
 
 | Fase | Escopo | Critério de entrega |
 |---|---|---|

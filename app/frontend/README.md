@@ -1,3 +1,3 @@
 # Frontend planejado
 
-React, Vite e TypeScript. As telas seguirão o protótipo fornecido. Implementação pendente (Fase 1).
+React, Vite e TypeScript. Oito telas, demandas, kanban e configurações Ollama. Integrações futuras exibidas como demonstração. Instruções no README da raiz.

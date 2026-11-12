@@ -1,0 +1,10 @@
+{
+  "name": "monitor-workspace", "version": "0.1.0-alpha.1", "private": true,
+  "workspaces": ["app/frontend", "app/desktop"],
+  "scripts": {
+    "dev": "npm run dev --workspace @monitor/frontend",
+    "build": "npm run build --workspace @monitor/frontend",
+    "test": "npm run test --workspace @monitor/frontend",
+    "tauri": "npm run tauri --workspace @monitor/desktop"
+  }
+}

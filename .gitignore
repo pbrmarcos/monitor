@@ -31,8 +31,11 @@ dist/
 build/
 coverage/
 *.egg-info/
+*.spec
+app/desktop/src-tauri/binaries/*.exe
 
 # Local tools and temporary files
+.tools/
 .codex/
 .agents/
 .aws/
