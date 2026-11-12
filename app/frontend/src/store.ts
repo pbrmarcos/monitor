@@ -190,9 +190,17 @@ export function useMonitor() {
 
   useEffect(() => {
     if (!connected) return;
-    const timer = setInterval(() => void refreshInbox().catch(() => {}), 30000);
+    const timer = setInterval(() => {
+      void refreshInbox().catch(() => {});
+      if (!preview) {
+        void api<SocialProfile[]>("/social")
+          .then(setSocial)
+          .catch(() => {});
+        void refreshDemands().catch(() => {});
+      }
+    }, 30000);
     return () => clearInterval(timer);
-  }, [connected, refreshInbox]);
+  }, [connected, preview, refreshInbox, refreshDemands]);
 
   useEffect(() => {
     if (!notice) return;

@@ -184,6 +184,29 @@ export type SocialProfile = {
   stories_week: number | null;
   likes_week: number | null;
   comments_week: number | null;
+  method?: "api" | "browser";
+  enabled?: boolean;
+  auto_demands?: boolean;
+  browser_path?: string;
+  comments_detail?: string;
+};
+export type BrowserProfile = {
+  account_id: number;
+  name: string;
+  username: string;
+  path: string;
+};
+export type SocialComment = {
+  id: number;
+  profile_id: number;
+  front_id: number;
+  author: string;
+  text: string;
+  post_url: string;
+  published_at: string;
+  status: string;
+  reason: string;
+  demand_id: number | null;
 };
 export type Calendar = {
   client_id: string;

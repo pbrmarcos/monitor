@@ -204,6 +204,13 @@ class SocialProfile(SQLModel, table=True):
     status: str = 'aguardando'
     status_detail: str = ''
     last_sync: datetime | None = None
+    method: str = 'api'
+    browser_path: str = ''
+    auto_demands: bool = False
+    enabled: bool = True
+    comments_detail: str = ''
+    browser_since: datetime | None = None
+    metrics_complete: bool = True
 
 
 class SocialSnapshot(SQLModel, table=True):
@@ -224,6 +231,21 @@ class SocialMedia(SQLModel, table=True):
     published_at: datetime
     likes: int = 0
     comments: int = 0
+
+
+class SocialComment(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint('profile_id', 'comment_id'), {'sqlite_autoincrement': True})
+    id: int | None = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    comment_id: str
+    author: str
+    text: str
+    post_url: str
+    published_at: datetime
+    received_at: datetime = Field(default_factory=now)
+    status: str = 'revisar'
+    reason: str = ''
+    demand_id: int | None = None
 
 
 class Conversation(SQLModel, table=True):

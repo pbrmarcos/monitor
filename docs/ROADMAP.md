@@ -12,10 +12,10 @@ Situação em 12/11/2026. Detalhes de cada verificação em `VALIDATION.md`; reg
 | 5 | Arquivos: catálogo da pasta, extração de texto, busca, classificação | Pendente (pasta e backup já entregues em 2b) |
 | 6 | Assistente: consultas ao banco, fontes citadas, ações com confirmação | Conversas gerais e de trabalho salvas, reabertura, exclusão e preferências explícitas de resposta, com teste no Qwen real. Citações de demandas abrem o registro. Ações comerciais e busca em arquivos pendentes (`ASSISTENTE.md`) |
 | 6b | Google Agenda: demandas com data como eventos na conta do usuário | Implementado e testado com Google simulado. Falta conectar a conta real com a credencial OAuth do usuário (`AGENDA-GOOGLE.md`) |
-| 7 | Redes sociais: provedores oficiais, snapshots, mensagens, Discord opcional | Primeira entrega: perfis do Instagram pela API oficial, coleta horária e cartões com totais e números da semana; testado com Instagram simulado (`REDES-SOCIAIS.md`). Pendentes conexão real, mensagens e WhatsApp (depende de parceiro da Meta) |
+| 7 | Redes sociais: snapshots, comentários e demandas | Chrome oculto pelos perfis do Prospect, rodadas de 15 minutos, alternativa pela página, revisão de comentários e demandas opcionais por regras. Leitura exercitada em três contas reais; perfil ocupado adiado. Direct, stories pelo navegador, WhatsApp e operação contínua ainda pendentes (`REDES-SOCIAIS.md`) |
 | — | Personalização e atualização: perfil, nomes das frentes, cores, atualização pelo aplicativo | Perfil, frentes, favicons e cores entregues. Atualizador compilado, pacotes assinados e manifesto publicado. Instalação pelo botão ainda requer validação manual (`ATUALIZACOES.md`) |
 
-Alternativa para redes sociais: [estudo de navegador em segundo plano](ESTUDO-REDES-NAVEGADOR.md) e prova local de perfil dedicado com sessão sintética persistente. Coleta real de Instagram por navegador ainda não implementada.
+A implementação do navegador deriva do [estudo de coleta em segundo plano](ESTUDO-REDES-NAVEGADOR.md). A conexão anterior pela API continua disponível como alternativa, sem ser requisito do fluxo principal.
 
 ## Antes de considerar uma fase concluída
 

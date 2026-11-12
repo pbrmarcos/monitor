@@ -360,7 +360,7 @@ export function SocialTable({ m }: { m: Monitor }) {
     return (
       <Empty
         icon={Activity}
-        text="Conecte um Instagram profissional na tela Redes sociais para acompanhar seguidores e posts."
+        text="Conecte seus perfis do Chrome na tela Redes sociais para acompanhar seguidores e posts."
       >
         <button className="sm" onClick={() => m.setPage("Redes sociais")}>
           Conectar perfil

@@ -1,5 +1,7 @@
 # Estudo: redes sociais com navegador em segundo plano
 
+**Atualização 0.7.0-alpha.1:** a coleta pelos perfis do Instagram Prospect foi implementada, com rodadas de 15 minutos, Chrome sem janela e alternativa de leitura pela página. Três contas reais foram exercitadas; uma conta ocupada foi adiada. Veja o funcionamento atual em [Redes sociais](REDES-SOCIAIS.md). O texto abaixo preserva o estudo anterior à implementação.
+
 Estudo realizado em 12/11/2026. Não foi conectada nenhuma conta real do Instagram, não foram copiadas credenciais do Chrome pessoal e nenhum coletor horário de redes foi instalado.
 
 ## Conclusão

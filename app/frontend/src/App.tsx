@@ -72,7 +72,7 @@ const nav: Record<Page, { icon: typeof Mail; title: string; lead: string }> = {
   "Redes sociais": {
     icon: Activity,
     title: "Acompanhe suas conexões.",
-    lead: "Seguidores, posts e stories dos seus perfis.",
+    lead: "Seguidores, publicações e comentários dos seus perfis.",
   },
   Arquivos: {
     icon: Folder,

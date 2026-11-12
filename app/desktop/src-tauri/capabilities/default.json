@@ -14,7 +14,9 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         { "url": "https://ollama.com/download/windows" },
-        { "url": "https://console.cloud.google.com/*" }
+        { "url": "https://console.cloud.google.com/*" },
+        { "url": "https://www.instagram.com/p/*" },
+        { "url": "https://www.instagram.com/reel/*" }
       ]
     }
   ]

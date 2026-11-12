@@ -1,6 +1,8 @@
 import { Activity, RefreshCw, Trash2 } from "lucide-react";
-import { FormEvent, useState } from "react";
-import { api, SocialProfile } from "../api";
+import { FormEvent, useEffect, useState } from "react";
+import { api, BrowserProfile, SocialComment, SocialProfile } from "../api";
+import { isTauri } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Monitor } from "../store";
 import { Avatar, Callout, Empty, frontLabel, Panel, timeLabel } from "../ui";
 
@@ -13,10 +15,12 @@ export function ProfileCard({
   profile,
   onSync,
   onRemove,
+  onSettings,
 }: {
   profile: SocialProfile;
   onSync?: () => Promise<void>;
   onRemove?: () => Promise<void>;
+  onSettings?: (enabled: boolean, auto: boolean) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -30,7 +34,7 @@ export function ProfileCard({
       label:
         profile.change_days && profile.change_days < 7
           ? `Seguidores em ${profile.change_days} ${profile.change_days === 1 ? "dia" : "dias"}`
-          : "Novos seguidores",
+          : "Variação de seguidores",
       value: signed(change),
       tone: change === null || change === 0 ? "" : change > 0 ? "up" : "down",
     },
@@ -61,7 +65,7 @@ export function ProfileCard({
             className="icon sm ghost"
             aria-label={`Atualizar @${profile.username}`}
             title="Atualizar agora"
-            disabled={busy}
+            disabled={busy || profile.enabled === false}
             onClick={() => void run(onSync)}
           >
             <RefreshCw size={16} />
@@ -100,10 +104,53 @@ export function ProfileCard({
           ))}
         </dl>
       </div>
-      {profile.status === "erro" && (
-        <Callout tone="error" role="alert">
+      {profile.status_detail && (
+        <Callout tone={profile.status === "erro" ? "error" : ""} role="status">
           {profile.status_detail}
         </Callout>
+      )}
+      {profile.method === "browser" && (
+        <div className="social-browser-settings">
+          <span className="badge">Chrome oculto · a cada 15 min</span>
+          <p>
+            Até 12 posts recentes. Os números da semana cobrem os posts
+            observados; stories e Direct não são lidos.
+          </p>
+          {profile.comments_detail && (
+            <p role="status">{profile.comments_detail}</p>
+          )}
+          {onSettings && (
+            <>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={!!profile.auto_demands}
+                  disabled={busy}
+                  onChange={(e) =>
+                    void run(() =>
+                      onSettings(profile.enabled !== false, e.target.checked),
+                    )
+                  }
+                />{" "}
+                Criar demandas de novos pedidos comerciais
+              </label>
+              <button
+                className="sm"
+                disabled={busy}
+                onClick={() =>
+                  void run(() =>
+                    onSettings(
+                      profile.enabled === false,
+                      !!profile.auto_demands,
+                    ),
+                  )
+                }
+              >
+                {profile.enabled === false ? "Retomar coleta" : "Pausar coleta"}
+              </button>
+            </>
+          )}
+        </div>
       )}
       {confirming && onRemove ? (
         <footer>
@@ -139,7 +186,64 @@ export function Social({ m }: { m: Monitor }) {
   const [front, setFront] = useState(1);
   const [token, setToken] = useState("");
   const [saving, setSaving] = useState(false);
+  const [browserProfiles, setBrowserProfiles] = useState<BrowserProfile[]>([]);
+  const [account, setAccount] = useState(0);
+  const [automatic, setAutomatic] = useState(true);
+  const [comments, setComments] = useState<SocialComment[]>([]);
+  const [workingComment, setWorkingComment] = useState<number | null>(null);
   const real = m.connected && !m.preview;
+  async function refresh() {
+    const [profiles, records] = await Promise.all([
+      api<SocialProfile[]>("/social"),
+      api<SocialComment[]>("/social/comments"),
+    ]);
+    m.setSocial(profiles);
+    setComments(records);
+    await m.refreshDemands();
+  }
+  async function findProfiles() {
+    try {
+      const found = await api<BrowserProfile[]>("/social/browser/profiles");
+      setBrowserProfiles(found);
+      if (found.length && !account) chooseAccount(found[0]);
+    } catch (error) {
+      m.fail(error);
+    }
+  }
+  function chooseAccount(profile: BrowserProfile) {
+    setAccount(profile.account_id);
+    const match = [1, 2, 3, 4].find(
+      (n) =>
+        frontLabel(n).toLocaleLowerCase() === profile.name.toLocaleLowerCase(),
+    );
+    if (match) setFront(match);
+  }
+  useEffect(() => {
+    if (!real) return;
+    void findProfiles();
+    void refresh().catch(m.fail);
+    const timer = setInterval(() => void refresh().catch(() => {}), 30000);
+    return () => clearInterval(timer);
+  }, [real]);
+  async function connectBrowser(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api<SocialProfile>("/social/browser", "POST", {
+        account_id: account,
+        front_id: front,
+        auto_demands: automatic,
+      });
+      await refresh();
+      m.setNotice(
+        "Perfil conectado. Clique em atualizar para coletar agora; as próximas rodadas são a cada 15 minutos.",
+      );
+    } catch (error) {
+      m.fail(error);
+    } finally {
+      setSaving(false);
+    }
+  }
   const profiles = m.social.filter((p) => !m.front || p.front_id === m.front);
   const replace = (profile: SocialProfile) =>
     m.setSocial((old) =>
@@ -179,8 +283,28 @@ export function Social({ m }: { m: Monitor }) {
                 real
                   ? () =>
                       api<SocialProfile>(`/social/${profile.id}/sync`, "POST")
-                        .then(replace)
+                        .then(async (profile) => {
+                          replace(profile);
+                          await refresh();
+                        })
                         .catch(m.fail)
+                  : undefined
+              }
+              onSettings={
+                real && profile.method === "browser"
+                  ? async (enabled, auto_demands) => {
+                      try {
+                        replace(
+                          await api<SocialProfile>(
+                            `/social/${profile.id}/browser`,
+                            "PUT",
+                            { enabled, auto_demands },
+                          ),
+                        );
+                      } catch (error) {
+                        m.fail(error);
+                      }
+                    }
                   : undefined
               }
               onRemove={
@@ -206,32 +330,54 @@ export function Social({ m }: { m: Monitor }) {
             text={
               m.social.length
                 ? "Nenhum perfil conectado nesta frente."
-                : "Nenhum perfil conectado. Conecte um Instagram profissional abaixo para acompanhar seguidores, posts e stories."
+                : "Conecte os perfis do Chrome usados pelo Instagram Prospect para acompanhar suas contas."
             }
           />
         </section>
       )}
       {!m.preview && (
         <Panel
-          title="Conectar Instagram"
-          action={<span className="badge">Somente leitura</span>}
+          title="Conectar pelo Chrome do Prospect"
+          action={<span className="badge">Sem token da Meta</span>}
         >
           <div className="panel-body">
             <p>
-              O Monitor consulta a API oficial do Instagram uma vez por hora,
-              sem navegador e sem publicar nada. A conta precisa ser
-              profissional (Comercial ou Criador). Gere o token de acesso no
-              painel de desenvolvedor da Meta; o passo a passo está em
-              docs/REDES-SOCIAIS.md. O token fica no Gerenciador de
-              Credenciais do Windows.
+              O Monitor usa o login já salvo no Prospect, abre o Chrome sem
+              janela a cada 15 minutos e fecha ao terminar. O computador e o
+              Monitor precisam estar ligados. Se o perfil estiver aberto no
+              Prospect, a coleta dessa conta será adiada.
             </p>
-            <form className="form-grid" onSubmit={(e) => void connect(e)}>
+            <form
+              className="form-grid"
+              onSubmit={(e) => void connectBrowser(e)}
+            >
+              <label className="field">
+                Conta do Instagram Prospect
+                <select
+                  value={account}
+                  disabled={!real || saving}
+                  onChange={(e) => {
+                    const selected = browserProfiles.find(
+                      (p) => p.account_id === Number(e.target.value),
+                    );
+                    if (selected) chooseAccount(selected);
+                  }}
+                  required
+                >
+                  <option value={0}>Selecione o perfil</option>
+                  {browserProfiles.map((p) => (
+                    <option key={p.account_id} value={p.account_id}>
+                      @{p.username} · {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="field">
                 Frente
                 <select
                   value={front}
                   onChange={(e) => setFront(Number(e.target.value))}
-                  disabled={!real}
+                  disabled={!real || saving}
                 >
                   {[1, 2, 3, 4].map((n) => (
                     <option key={n} value={n}>
@@ -240,30 +386,213 @@ export function Social({ m }: { m: Monitor }) {
                   ))}
                 </select>
               </label>
-              <label className="field">
-                Token de acesso do Instagram
+              <label className="check">
                 <input
-                  type="password"
-                  autoComplete="off"
-                  required
-                  minLength={20}
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  disabled={!real}
-                />
+                  type="checkbox"
+                  checked={automatic}
+                  onChange={(e) => setAutomatic(e.target.checked)}
+                  disabled={!real || saving}
+                />{" "}
+                Criar demandas de novos pedidos comerciais claros
               </label>
+              <p>
+                Pedidos de orçamento, preço, contratação ou suporte podem virar
+                demandas. Comentários antigos ficam para revisão. Nenhuma
+                resposta é enviada ao Instagram.
+              </p>
               <div className="button-row">
-                <button className="primary" disabled={!real || saving}>
-                  {saving ? "Conectando…" : "Conectar perfil"}
+                <button
+                  className="primary"
+                  disabled={!real || saving || !account}
+                >
+                  {saving ? "Conectando…" : "Conectar perfil do Chrome"}
+                </button>
+                <button
+                  type="button"
+                  disabled={!real || saving}
+                  onClick={() => void findProfiles()}
+                >
+                  Buscar perfis
                 </button>
               </div>
             </form>
-            <p>
-              WhatsApp ainda não está disponível: a leitura oficial depende de
-              um parceiro da Meta.
-            </p>
+            {!browserProfiles.length && (
+              <p>
+                Não há perfis disponíveis em InstagramProspect na pasta local
+                deste usuário. Configure e faça login nas contas pelo Prospect
+                primeiro.
+              </p>
+            )}
           </div>
         </Panel>
+      )}
+      {real && (
+        <Panel
+          title="Comentários coletados"
+          action={
+            <span className="badge">
+              {
+                comments.filter((c) => !m.front || c.front_id === m.front)
+                  .length
+              }{" "}
+              recentes
+            </span>
+          }
+        >
+          {comments.filter((c) => !m.front || c.front_id === m.front).length ? (
+            <div className="social-comments">
+              {comments
+                .filter((c) => !m.front || c.front_id === m.front)
+                .map((comment) => (
+                  <article key={comment.id}>
+                    <header>
+                      <strong>@{comment.author}</strong>
+                      <span>
+                        {frontLabel(comment.front_id)} ·{" "}
+                        {timeLabel(comment.published_at)}
+                      </span>
+                    </header>
+                    <p>{comment.text}</p>
+                    <small>{comment.reason}</small>
+                    <div className="button-row">
+                      <button
+                        className="ghost sm"
+                        onClick={() => {
+                          if (isTauri())
+                            void openUrl(comment.post_url).catch(m.fail);
+                          else
+                            window.open(comment.post_url, "_blank", "noopener");
+                        }}
+                      >
+                        Ver publicação ↗
+                      </button>
+                      {comment.demand_id ? (
+                        <button
+                          className="sm"
+                          onClick={() => {
+                            const demand = m.demands.find(
+                              (d) => d.id === comment.demand_id,
+                            );
+                            if (demand) m.setDetail(demand);
+                            else m.setPage("Demandas");
+                          }}
+                        >
+                          Abrir demanda #{comment.demand_id}
+                        </button>
+                      ) : (
+                        comment.status !== "descartado" && (
+                          <>
+                            <button
+                              className="sm"
+                              disabled={workingComment !== null}
+                              onClick={async () => {
+                                setWorkingComment(comment.id);
+                                try {
+                                  await api(
+                                    `/social/comments/${comment.id}/accept`,
+                                    "POST",
+                                  );
+                                  await refresh();
+                                } catch (error) {
+                                  m.fail(error);
+                                } finally {
+                                  setWorkingComment(null);
+                                }
+                              }}
+                            >
+                              Criar demanda
+                            </button>
+                            <button
+                              className="ghost sm"
+                              disabled={workingComment !== null}
+                              onClick={async () => {
+                                setWorkingComment(comment.id);
+                                try {
+                                  await api(
+                                    `/social/comments/${comment.id}/dismiss`,
+                                    "POST",
+                                  );
+                                  await refresh();
+                                } catch (error) {
+                                  m.fail(error);
+                                } finally {
+                                  setWorkingComment(null);
+                                }
+                              }}
+                            >
+                              Descartar
+                            </button>
+                          </>
+                        )
+                      )}
+                    </div>
+                  </article>
+                ))}
+            </div>
+          ) : (
+            <Empty
+              icon={Activity}
+              text="Os comentários dos posts recentes aparecerão após a primeira coleta."
+            />
+          )}
+        </Panel>
+      )}
+      {!m.preview && (
+        <details className="social-api-option">
+          <summary>Conexão alternativa pela API da Meta</summary>
+          <Panel
+            title="Conectar Instagram"
+            action={<span className="badge">Somente leitura</span>}
+          >
+            <div className="panel-body">
+              <p>
+                A conexão alternativa consulta a API do Instagram a cada 15
+                minutos, sem navegador e sem publicar nada. A conta precisa ser
+                profissional (Comercial ou Criador). Gere o token de acesso no
+                painel de desenvolvedor da Meta; o passo a passo está em
+                docs/REDES-SOCIAIS.md. O token fica no Gerenciador de
+                Credenciais do Windows.
+              </p>
+              <form className="form-grid" onSubmit={(e) => void connect(e)}>
+                <label className="field">
+                  Frente
+                  <select
+                    value={front}
+                    onChange={(e) => setFront(Number(e.target.value))}
+                    disabled={!real}
+                  >
+                    {[1, 2, 3, 4].map((n) => (
+                      <option key={n} value={n}>
+                        {frontLabel(n)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  Token de acesso do Instagram
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    required
+                    minLength={20}
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    disabled={!real}
+                  />
+                </label>
+                <div className="button-row">
+                  <button className="primary" disabled={!real || saving}>
+                    {saving ? "Conectando…" : "Conectar perfil"}
+                  </button>
+                </div>
+              </form>
+              <p>
+                WhatsApp ainda não está disponível: a leitura oficial depende de
+                um parceiro da Meta.
+              </p>
+            </div>
+          </Panel>
+        </details>
       )}
     </>
   );

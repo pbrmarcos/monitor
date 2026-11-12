@@ -11,6 +11,7 @@ Invoke-Checked { & $Python -m pytest app/backend/tests }
 Invoke-Checked { npm.cmd test }
 Invoke-Checked { & $Python -m PyInstaller --clean --noconfirm --onefile --name monitor-backend --hidden-import keyring.backends.Windows --collect-data tzdata --paths app/backend --distpath app/desktop/src-tauri/binaries app/backend/run_backend.py }
 Invoke-Checked { & $Python scripts/desktop_smoke.py }
+Invoke-Checked { & 'app/desktop/src-tauri/binaries/monitor-backend.exe' --browser-smoke }
 Invoke-Checked { & $Python scripts/reminder_sidecar_smoke.py }
 $targetTriple = ((rustc -vV | Select-String '^host:').ToString() -split ': ')[1].Trim()
 if (-not $targetTriple) { throw 'Não foi possível identificar o target Rust.' }
@@ -30,6 +31,7 @@ New-Item -ItemType Directory -Force dist/portable | Out-Null
 Copy-Item -LiteralPath 'app/desktop/src-tauri/target/release/monitor.exe' -Destination dist/portable -Force
 Copy-Item -LiteralPath 'app/desktop/src-tauri/binaries/monitor-backend.exe' -Destination dist/portable -Force
 Copy-Item -LiteralPath 'app/desktop/src-tauri/Cargo.lock' -Destination dist/portable -Force
+Invoke-Checked { & $Python scripts/collect_browser_licenses.py }
 $config = Get-Content -LiteralPath 'app/desktop/src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json
 $prefix = "$($config.productName)_$($config.version)_"
 # The Rust cache may retain installers from previous versions. Export only this build.

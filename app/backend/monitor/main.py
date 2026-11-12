@@ -27,7 +27,7 @@ from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Event, Se
 from .models import Conversation, ChatTurn, AssistantRule
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
-VERSION = '0.6.0-alpha.2'
+VERSION = '0.7.0-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
@@ -42,7 +42,7 @@ class DemandInput(BaseModel):
     next_action: str = Field(default='', max_length=2000)
     return_date: date | None = None
     summary: str = Field(default='', max_length=6000)
-    origin_ref: str = Field(default='', max_length=60, pattern=r'^((email|form):\d+)?$')
+    origin_ref: str = Field(default='', max_length=60, pattern=r'^((email|form|instagram):\d+)?$')
 
     @model_validator(mode='after')
     def validate_demand(self):
@@ -120,7 +120,14 @@ def migrate(engine):
         reminder_columns = {row[1] for row in connection.execute(text('PRAGMA table_info(reminder)'))}
         if 'revision' not in reminder_columns:
             connection.execute(text('ALTER TABLE reminder ADD COLUMN revision INTEGER NOT NULL DEFAULT 0'))
-        for version in (1, 2, 3, 4, 5, 6, 7):  # 7: conversas, mensagens e preferências do assistente
+        social_columns = {row[1] for row in connection.execute(text('PRAGMA table_info(socialprofile)'))}
+        for name, definition in {'method': "VARCHAR NOT NULL DEFAULT 'api'", 'browser_path': "VARCHAR NOT NULL DEFAULT ''",
+                                 'auto_demands': 'BOOLEAN NOT NULL DEFAULT 0', 'enabled': 'BOOLEAN NOT NULL DEFAULT 1',
+                                 'comments_detail': "VARCHAR NOT NULL DEFAULT ''", 'browser_since': 'DATETIME',
+                                 'metrics_complete': 'BOOLEAN NOT NULL DEFAULT 1'}.items():
+            if name not in social_columns:
+                connection.execute(text(f'ALTER TABLE socialprofile ADD COLUMN {name} {definition}'))
+        for version in (1, 2, 3, 4, 5, 6, 7, 8):  # 8: navegador do Instagram e comentários
             connection.execute(text('INSERT OR IGNORE INTO schema_migrations VALUES (:v)'), {'v': version})
 
 
@@ -230,7 +237,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
                 scheduler.add_job(lambda: inbox.sync_all(engine, vault, connector), IntervalTrigger(minutes=2), next_run_time=start)
                 scheduler.add_job(lambda: inbox.process_queue(engine), IntervalTrigger(seconds=20), next_run_time=start)
                 scheduler.add_job(lambda: gcal.sync(engine, vault), IntervalTrigger(minutes=2), next_run_time=start + timedelta(seconds=12))
-                scheduler.add_job(lambda: social.sync(engine, vault), IntervalTrigger(hours=1), next_run_time=start + timedelta(seconds=20))
+                scheduler.add_job(lambda: social.sync(engine, vault), IntervalTrigger(minutes=15), next_run_time=start + timedelta(seconds=20), id='social-15min')
                 scheduler.add_job(backup_if_due, IntervalTrigger(hours=3), next_run_time=start + timedelta(seconds=30))
             scheduler.start()
         yield

@@ -1097,6 +1097,52 @@ hr {
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: var(--s5);
 }
+.social-browser-settings {
+  padding: 0 var(--s5) var(--s4);
+  display: grid;
+  gap: var(--s3);
+}
+.social-browser-settings p {
+  font-size: var(--text-caption);
+  color: var(--muted);
+  margin: 0;
+}
+.social-comments article {
+  padding: var(--s5);
+  border-bottom: 1px solid var(--divider);
+}
+.social-comments article:last-child {
+  border-bottom: 0;
+}
+.social-comments header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  align-items: center;
+}
+.social-comments header span,
+.social-comments small {
+  font-size: var(--text-caption);
+  color: var(--muted);
+}
+.social-comments p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: var(--s3) 0;
+}
+.social-comments .button-row {
+  margin-top: var(--s3);
+  flex-wrap: wrap;
+}
+.social-comments a {
+  font-size: var(--text-caption);
+}
+.social-api-option > summary {
+  cursor: pointer;
+  margin: var(--s3) 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
 .social-card {
   display: grid;
   gap: var(--s4);

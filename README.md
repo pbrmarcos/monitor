@@ -2,7 +2,7 @@
 
 Central de operação pessoal com IA local para reunir demandas, e-mails, acompanhamento comercial, sites, redes sociais e arquivos.
 
-**Estado: versão `0.6.0-alpha.2`.** Demandas, kanban, e-mails IMAP, triagem local, sugestões, pasta de arquivos, backups, exportação, agenda e central de avisos. Agora inclui checagens dos sites e fila de formulários com relay para VPS. O assistente conversa com o modelo local sobre os seus dados e as demandas com data podem ir para o [Google Agenda](docs/AGENDA-GOOGLE.md). Perfis do [Instagram](docs/REDES-SOCIAIS.md) aparecem em cartões com os números da semana; perfil, frentes e cores são personalizáveis e o aplicativo [se atualiza](docs/ATUALIZACOES.md) por um botão. WhatsApp e catálogo de arquivos ainda não foram entregues. Consulte a [validação](docs/VALIDATION.md).
+**Estado: versão `0.7.0-alpha.1`.** Demandas, kanban, e-mails IMAP, triagem local, sugestões, pasta de arquivos, backups, exportação, agenda e central de avisos. Agora inclui checagens dos sites e fila de formulários com relay para VPS. O assistente conversa com o modelo local sobre os seus dados e as demandas com data podem ir para o [Google Agenda](docs/AGENDA-GOOGLE.md). Perfis do [Instagram](docs/REDES-SOCIAIS.md) aparecem em cartões com os números da semana; perfil, frentes e cores são personalizáveis e o aplicativo [se atualiza](docs/ATUALIZACOES.md) por um botão. WhatsApp e catálogo de arquivos ainda não foram entregues. Consulte a [validação](docs/VALIDATION.md).
 
 ## Objetivo
 
@@ -11,7 +11,7 @@ Central de operação pessoal com IA local para reunir demandas, e-mails, acompa
 - Monitorar várias caixas de e-mail e sugerir demandas para revisão.
 - Criar demandas manualmente e acompanhar a próxima ação comercial.
 - Acompanhar disponibilidade dos sites e funcionamento dos formulários.
-- Consultar métricas e mensagens de redes sociais por integrações oficiais.
+- Coletar métricas e comentários do Instagram com o Chrome oculto e criar demandas de pedidos comerciais.
 - Catalogar arquivos locais e pastas sincronizadas do OneDrive.
 - Conversar com um assistente local que consulta os registros e cita suas fontes.
 
@@ -49,6 +49,8 @@ O banco em uso fica em `%LOCALAPPDATA%\Monitor`, fora de pastas sincronizadas, p
 
 Requisitos Windows: Node 22+, Python 3.12, Rust estável, C++ Build Tools e WebView2 ([pré-requisitos Tauri](https://v2.tauri.app/start/prerequisites/)).
 
+A coleta do Instagram usa o Google Chrome instalado e os perfis locais do Instagram Prospect. O Playwright é empacotado no backend; não é necessário baixar outro navegador. Consulte [Redes sociais](docs/REDES-SOCIAIS.md) para conectar contas e entender a cobertura.
+
 ```powershell
 python -m venv .venv
 .venv/Scripts/python.exe -m pip install -c app/backend/requirements-dev.lock -e 'app/backend[dev]'
@@ -69,7 +71,7 @@ npm run build
 
 O script gera o sidecar com PyInstaller, testa o executável e compila os instaladores NSIS/MSI em `dist/`. O workflow Windows desktop faz o mesmo no GitHub Actions. Os instaladores não têm assinatura Authenticode. As assinaturas próprias do atualizador são geradas no build com a chave guardada no segredo protegido do repositório; elas não removem os avisos do SmartScreen.
 
-Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. `--no-notifications` desativa a ponte de avisos nativos na sessão de teste. O MSI usa a versão interna numérica `0.6.0.2`.
+Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. `--no-notifications` desativa a ponte de avisos nativos na sessão de teste. O MSI usa a versão interna numérica `0.7.0.1`.
 
 Ollama é separado do instalador. Em Configurações, verifique a disponibilidade, ajuste o modelo e solicite o download. Sem Ollama, as regras continuam triando os e-mails e as mensagens aguardam na fila da IA.
 
