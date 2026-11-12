@@ -1,6 +1,14 @@
 # Validação
 
-Situação em 12/11/2026, versão `0.5.1-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 12/11/2026, versão `0.5.2-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Favicons das empresas (0.5.2-alpha.1)
+
+Upload PNG e ICO exercitado pela interface com API e SQLite temporários reais. A integração verificou os dois ícones após recarregar, sua presença nas abas de sete telas, normalização em 64 pixels, proporção e transparência. A leitura usa data URI, compatível com a política de imagens do desktop. A navegação visual em três larguras e os três testes de componentes passaram.
+
+A API foi testada para persistência após reinício, remoção, rejeição de formatos/dimensões/tamanhos inválidos e preservação dos ícones quando clientes antigos salvam preferências sem esse campo. Os testes de preferências/Instagram usam cofre em memória, sem alterar credenciais reais.
+
+O [build Windows de b58e05a](https://github.com/pbrmarcos/monitor/actions/runs/43303698991) passou com os testes, sidecar, scheduler, frontend, Rust, instaladores e assinaturas do atualizador. Os pacotes 0.5.2 vêm dessa execução. A instalação pelo botão continua pendente de validação manual.
 
 ## Altura das mensagens do assistente (0.5.1-alpha.1)
 
