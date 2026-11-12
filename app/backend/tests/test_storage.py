@@ -1,11 +1,21 @@
 import sqlite3
+import csv
 
 from fastapi.testclient import TestClient
 from sqlmodel import create_engine
 
 from monitor.main import create_app, migrate
+from monitor.storage import export_demands
 
 HEADERS = {'Authorization': 'Bearer session'}
+
+
+def test_export_keeps_untrusted_values_as_text(tmp_path):
+    path = export_demands([{'title': '=1+1', 'contact': ' @SUM(1)', 'summary': 'Texto normal'}], tmp_path)
+    with path.open(encoding='utf-8-sig', newline='') as handle:
+        row = next(csv.DictReader(handle, delimiter=';'))
+    assert row['title'] == "'=1+1" and row['contact'] == "' @SUM(1)"
+    assert row['summary'] == 'Texto normal'
 
 
 def test_files_folder_backup_and_export(tmp_path):

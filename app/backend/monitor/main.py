@@ -12,6 +12,8 @@ from typing import Literal
 import httpx
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -207,6 +209,14 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     app.state.token = session_token
     app.state.engine = engine
     app.state.vault = vault
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request, error):
+        # Pydantic includes rejected field values by default, including passwords.
+        return JSONResponse(status_code=422, content={'detail': [
+            {'loc': list(item['loc']), 'msg': item['msg'], 'type': item['type']}
+            for item in error.errors()
+        ]})
 
     @app.get('/health')
     def health():

@@ -134,6 +134,15 @@ def test_demo_mode_has_sample_inbox_and_blocks_real_accounts(tmp_path):
         assert api.post('/email-accounts', json={**ACCOUNT, 'port': 993}).status_code == 409
 
 
+def test_invalid_password_is_not_echoed_in_validation_response(tmp_path):
+    _, client = make(tmp_path)
+    with client as api:
+        password = 'never-echo-this-password-' * 30
+        response = api.post('/email-accounts', json={**ACCOUNT, 'password': password})
+        assert response.status_code == 422
+        assert password not in response.text and 'never-echo' not in response.text
+
+
 def test_incremental_backlog_is_drained_without_skipping(tmp_path, imap):
     app, client = make(tmp_path)
     with client as api:

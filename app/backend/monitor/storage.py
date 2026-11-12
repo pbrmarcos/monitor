@@ -103,7 +103,10 @@ def export_demands(rows: list[dict], folder: Path) -> Path:
         with target.open('w', newline='', encoding='utf-8-sig') as handle:
             writer = csv.DictWriter(handle, fieldnames=columns, delimiter=';', extrasaction='ignore')
             writer.writeheader()
-            writer.writerows(rows)
+            for row in rows:
+                safe = {key: ("'" + value if isinstance(value, str) and value.lstrip().startswith(('=', '+', '-', '@')) else value)
+                        for key, value in row.items()}
+                writer.writerow(safe)
     except OSError:
         raise StorageError('Não foi possível gravar a planilha na pasta de arquivos.') from None
     return target

@@ -6,7 +6,7 @@ Situação em 12/11/2026, versão `0.2.0-alpha.1` (Fases 1 e 2 e pasta de arquiv
 
 | Verificação | Resultado |
 |---|---|
-| `pytest app/backend/tests` | 15 testes passaram |
+| `pytest app/backend/tests` | 22 testes passaram |
 | `npm test` (componentes) | 2 testes passaram |
 | `tsc --noEmit` | sem erros |
 | `scripts/ui_smoke.mjs` (prévia, Edge headless) | passou: sugestão, criação, edição, e-mails, oito telas, larguras de 820, 1600 e 2560 px, nenhum texto abaixo de 11 px |
@@ -37,3 +37,7 @@ Cobertura dos testes de backend:
 - Rodar o workflow Windows e instalar o `.exe` gerado, conferindo a página de pasta.
 - Dados das contas: servidor IMAP, porta, usuário e senha de cada frente.
 - Instalar o Ollama e baixar o modelo; depois rotular um CSV de e-mails reais e rodar `scripts/eval_emails.py`.
+
+## Revis?o de continuidade
+
+Foram adicionadas regress?es para filas IMAP acima de 200 mensagens, coleta parcial, prazos relativos a mensagens antigas, corre??es durante a chamada ao modelo, retirada de sugest?es rebaixadas, senhas em respostas de valida??o e f?rmulas em CSV. O cofre real do Windows foi testado somente com uma credencial sint?tica tempor?ria, removida ao final. Nenhuma conta real foi acessada.
