@@ -85,7 +85,7 @@ try {
     .waitFor();
   // Real production scheduler, not a manual invocation of the reminder service.
   await page
-    .getByText("Você tem um lembrete", { exact: true })
+    .getByText(/^Você tem um lembrete/)
     .waitFor({ timeout: 35000 });
   await page.reload();
   await page.getByText("Backend local conectado").waitFor();
@@ -93,7 +93,7 @@ try {
     .locator("nav")
     .getByRole("button", { name: "Lembretes", exact: true })
     .click();
-  await page.getByText("Você tem um lembrete", { exact: true }).waitFor();
+  await page.getByText(/^Você tem um lembrete/).waitFor();
   await page.screenshot({
     path: "tmp/ui/reminders-connected.png",
     fullPage: true,

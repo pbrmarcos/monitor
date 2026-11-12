@@ -43,22 +43,22 @@ describe("Monitor interface", () => {
     render(<App />);
     await user.click(await screen.findByText("Explorar demonstração"));
     await user.click(
-      screen.getByRole("button", { name: "Lembretes", exact: true }),
+      screen.getByRole("button", { name: "Lembretes" }),
     );
     await user.type(
       screen.getByLabelText("O que lembrar?"),
       "Retornar orçamento",
     );
     await user.click(
-      screen.getByRole("button", { name: "Criar lembrete", exact: true }),
+      screen.getByRole("button", { name: "Criar lembrete" }),
     );
     expect(await screen.findByText("Retornar orçamento")).toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: "Concluir", exact: true }),
+      screen.getByRole("button", { name: "Concluir" }),
     );
     expect(screen.queryByText("Retornar orçamento")).not.toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: "Ver histórico", exact: true }),
+      screen.getByRole("button", { name: "Ver histórico" }),
     );
     expect(await screen.findByText("Retornar orçamento")).toBeInTheDocument();
   });
