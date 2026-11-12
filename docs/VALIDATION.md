@@ -51,6 +51,16 @@ O [build final de 4359a07](https://github.com/pbrmarcos/monitor/actions/runs/432
 - Dados das contas: servidor IMAP, porta, usuário e senha de cada frente.
 - Instalar o Ollama e baixar o modelo; depois rotular um CSV de e-mails reais e rodar `scripts/eval_emails.py`.
 
+## Sites e relay — primeira entrega da Fase 4
+
+Em 12/11/2026: 37 testes de backend e 3 testes de componentes aprovados. A compilação TypeScript/Vite passou. O teste de navegação nas nove telas e três larguras passou; a integração com API, SQLite e scheduler reais incluiu um servidor HTTP temporário para checagens, falha 503, recuperação, pausa, retomada e histórico persistido.
+
+Os testes do relay executam o serviço real com bancos temporários: autenticação por função, validação sem eco de dados, limite de tamanho e taxa, descarte de testes, idempotência, conflito de identificadores, reinício, ACK perdido, commit local antes da confirmação, site sem mapeamento e deduplicação entre canais nos dois sentidos. Tokens são testados com cofre em memória; nenhuma credencial real foi usada.
+
+Consultas públicas pontuais: Carteira Pronta, WebQ e Nextlink responderam HTTP 200; o endereço Rocha Comercial sem `www` respondeu 200, enquanto a versão com `www` falhou na resolução de DNS nesta consulta. Isso é uma observação local, não uma medição de disponibilidade contínua ou falha universal de DNS.
+
+Docker e PHP não estão instalados no ambiente local: o contêiner e a função PHP auxiliar não foram executados aqui. A aplicação FastAPI do relay foi exercitada pelos testes. Implantação no Coolify, adaptação dos handlers, coleta com formulários reais, monitor externo, métricas do host e teste sintético semanal permanecem pendentes. O código não altera os sites existentes nem publica o relay.
+
 ## Revisão de continuidade
 
 Foram adicionadas regressões para filas IMAP acima de 200 mensagens, coleta parcial, prazos relativos a mensagens antigas, correções durante a chamada ao modelo, retirada de sugestões rebaixadas, senhas em respostas de validação e fórmulas em CSV. O cofre real do Windows foi testado somente com uma credencial sintética temporária, removida ao final. Nenhuma conta real foi acessada.

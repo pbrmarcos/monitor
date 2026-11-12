@@ -350,6 +350,11 @@ export function Reminders({ m }: { m: Monitor }) {
                 </small>
                 <p>{n.body}</p>
               </span>
+              {(n.kind === "site" || n.kind === "formulario") && (
+                <button className="sm" onClick={() => m.setPage("Sites")}>
+                  Ver sites e contatos
+                </button>
+              )}
               {!n.read && (
                 <button
                   className="sm"

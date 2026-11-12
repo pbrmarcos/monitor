@@ -8,7 +8,7 @@ Situação em 12/11/2026. Detalhes de cada verificação em `VALIDATION.md`; reg
 | 2 | E-mails: IMAP somente leitura, credenciais no Windows, fila de IA, regras, sugestões, correções, avaliação | Código entregue e testado com servidor IMAP e Ollama simulados. Falta validar com contas reais e medir o modelo com e-mails rotulados |
 | 2b | Pasta de arquivos: escolha no instalador e nas Configurações, backup diário e exportação | Compilação NSIS/MSI aprovada no CI. Interação manual com a página do instalador pendente |
 | 3 | Lembretes: agendamento persistente, notificações do Windows, resumo diário às 7h30 | Agenda, central, resumo e ponte nativa implementados; testes e compilação NSIS/MSI aprovados. Exibição e clique dos avisos no aplicativo instalado pendentes de validação manual |
-| 4 | Sites e relay: formulários, deduplicação, verificações, incidentes, monitor externo | Pendente |
+| 4 | Sites e relay: formulários, deduplicação, verificações, incidentes, monitor externo | Primeira entrega: checagens locais, SSL, incidentes, relay durável, revisão de contatos e deduplicação conservadora. Pendentes implantação real, teste sintético semanal, métricas do host e monitor externo independente |
 | 5 | Arquivos: catálogo da pasta, extração de texto, busca, classificação | Pendente (pasta e backup já entregues em 2b) |
 | 6 | Assistente: consultas ao banco, fontes citadas, ações com confirmação | Pendente |
 | 7 | Redes sociais: provedores oficiais, snapshots, mensagens, Discord opcional | Pendente |

@@ -87,6 +87,10 @@ export function useMonitor() {
     setAccounts(list);
     setPendingAi(queue.pending);
   }, []);
+  const refreshDemands = useCallback(
+    async () => setDemands(await api<Demand[]>("/demands")),
+    [],
+  );
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -395,6 +399,7 @@ export function useMonitor() {
     acceptSuggestion,
     dismissSuggestion,
     refreshInbox,
+    refreshDemands,
   };
 }
 export type Monitor = ReturnType<typeof useMonitor>;

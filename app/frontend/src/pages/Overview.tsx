@@ -16,6 +16,7 @@ import { useState } from "react";
 import { Demand, importanceLabels, stages } from "../api";
 import { today } from "../demo";
 import type { Monitor } from "../store";
+import { fresh, siteStatus, useSites } from "./Sites";
 import {
   dateLabel,
   Empty,
@@ -123,6 +124,10 @@ function FirstSteps({ m }: { m: Monitor }) {
 }
 
 export function Overview({ m }: { m: Monitor }) {
+  const { sites } = useSites(m);
+  const selectedSites = sites.filter(
+    (s) => s.enabled && (!m.front || s.front_id === m.front),
+  );
   const [tab, setTab] = useState<QueueTab>("Hoje");
   const hasMail = m.inbox.length > 0 || m.accounts.length > 0;
   const actionable = m.inbox.filter(
@@ -147,8 +152,18 @@ export function Overview({ m }: { m: Monitor }) {
     },
     {
       label: "Sites disponíveis",
-      value: m.preview ? (m.front ? "1 / 1" : "4 / 4") : "—",
-      caption: m.preview ? "Dados de demonstração" : "Monitoramento em breve",
+      value: m.preview
+        ? m.front
+          ? "1 / 1"
+          : "4 / 4"
+        : selectedSites.length
+          ? `${selectedSites.filter((s) => fresh(s) && s.latest?.ok).length} / ${selectedSites.length}`
+          : "—",
+      caption: m.preview
+        ? "Dados de demonstração"
+        : selectedSites.length
+          ? "Checagens locais recentes (até 5 min)"
+          : "Cadastre seus sites",
       icon: Globe,
     },
     {
@@ -268,7 +283,7 @@ export function Overview({ m }: { m: Monitor }) {
             <ArrowRight size={16} />
           </button>
         </Panel>
-        <Panel title="Saúde dos sites" action={m.preview ? sample : soon}>
+        <Panel title="Saúde dos sites" action={m.preview ? sample : undefined}>
           {m.preview ? (
             <div>
               {[1, 2, 3, 4]
@@ -287,10 +302,29 @@ export function Overview({ m }: { m: Monitor }) {
                   </div>
                 ))}
             </div>
+          ) : selectedSites.length ? (
+            selectedSites.map((site) => (
+              <button
+                className="row"
+                key={site.id}
+                onClick={() => m.setPage("Sites")}
+              >
+                <Globe size={18} aria-hidden />
+                <span className="row-body">
+                  <strong>{site.name}</strong>
+                  <small>{siteStatus(site)}</small>
+                </span>
+                <span className="row-meta">
+                  {site.latest?.latency_ms === null || !site.latest
+                    ? "—"
+                    : `${site.latest.latency_ms} ms`}
+                </span>
+              </button>
+            ))
           ) : (
             <Empty
               icon={Globe}
-              text="A verificação dos sites e formulários chega em uma próxima versão."
+              text="Cadastre seus sites para acompanhar as checagens aqui."
             />
           )}
           <button className="panel-foot" onClick={() => m.setPage("Sites")}>

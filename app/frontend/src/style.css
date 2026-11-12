@@ -1262,6 +1262,27 @@ dialog.modal::backdrop,
 .agenda-row .row-body p {
   margin-top: var(--s2);
 }
+.site-card > * + * {
+  margin-top: var(--s4);
+}
+.site-actions {
+  flex-wrap: wrap;
+}
+.site-card .path {
+  overflow-wrap: anywhere;
+}
+.form-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.form-entry {
+  border-top: 1px solid var(--divider);
+}
+.form-entry > * + * {
+  margin-top: var(--s3);
+}
 /* Telas largas: mais ar, mesmos tamanhos de texto */
 @media (min-width: 1800px) {
   .main {

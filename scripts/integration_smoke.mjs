@@ -5,6 +5,14 @@ import { mkdtemp, mkdir, readdir } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { createInterface } from "node:readline";
 import { once } from "node:events";
+import { createServer } from "node:http";
+let websiteStatus = 200;
+const website = createServer((req, res) => {
+  res.writeHead(websiteStatus, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(websiteStatus === 200 ? "Contato do teste Monitor" : "Indisponivel");
+});
+await new Promise((resolve) => website.listen(0, "127.0.0.1", resolve));
+const websiteUrl = `http://127.0.0.1:${website.address().port}`;
 await mkdir("tmp", { recursive: true });
 const directory = await mkdtemp(join(resolve("tmp"), "integration-"));
 const backend = spawn(
@@ -64,6 +72,57 @@ try {
   await page.getByRole("button", { name: "Fechar detalhes" }).click();
   await page
     .locator("nav")
+    .getByRole("button", { name: "Sites", exact: true })
+    .click();
+  await page.getByLabel("Usar endereço informado").selectOption("0");
+  await page.getByLabel("Nome", { exact: true }).fill("Site da integração");
+  await page.getByLabel("Endereço", { exact: true }).fill(websiteUrl);
+  await page
+    .getByLabel("Texto esperado (opcional)")
+    .fill("Contato do teste Monitor");
+  await page
+    .getByRole("button", { name: "Adicionar site", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Site da integração", exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Verificar agora", exact: true })
+    .click();
+  await page.getByText(/^Resposta válida/).waitFor();
+  websiteStatus = 503;
+  await page
+    .getByRole("button", { name: "Verificar agora", exact: true })
+    .click();
+  await page.getByText(/^HTTP 503/).waitFor();
+  websiteStatus = 200;
+  await page
+    .getByRole("button", { name: "Verificar agora", exact: true })
+    .click();
+  await page.getByText(/^Resposta válida/).waitFor();
+  await page.getByRole("button", { name: "Pausar", exact: true }).click();
+  await page.getByText("Pausado", { exact: true }).waitFor();
+  if (
+    !(await page
+      .getByRole("button", { name: "Verificar agora", exact: true })
+      .isDisabled())
+  )
+    throw new Error("Paused sites must not run checks");
+  await page.getByRole("button", { name: "Retomar", exact: true }).click();
+  await page.getByRole("button", { name: "Histórico", exact: true }).click();
+  await page.getByText("Últimas 100 checagens", { exact: true }).waitFor();
+  await page.screenshot({ path: "tmp/ui/sites-connected.png", fullPage: true });
+  await page.reload();
+  await page.getByText("Backend local conectado").waitFor();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Sites", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Site da integração", exact: true })
+    .waitFor();
+  await page
+    .locator("nav")
     .getByRole("button", { name: "Lembretes", exact: true })
     .click();
   await page
@@ -84,9 +143,7 @@ try {
     .getByText("Lembrete persistido na integração", { exact: true })
     .waitFor();
   // Real production scheduler, not a manual invocation of the reminder service.
-  await page
-    .getByText(/^Você tem um lembrete/)
-    .waitFor({ timeout: 35000 });
+  await page.getByText(/^Você tem um lembrete/).waitFor({ timeout: 35000 });
   await page.reload();
   await page.getByText("Backend local conectado").waitFor();
   await page
@@ -128,9 +185,10 @@ try {
     fullPage: true,
   });
   console.log(
-    "Integration: real API + SQLite, demands, durable reminders, production scheduler, inbox, files folder and backup OK",
+    "Integration: real API + SQLite, demands, sites (failure/recovery/pause/history), durable reminders, production scheduler, inbox, files folder and backup OK",
   );
 } finally {
+  await new Promise((resolve) => website.close(resolve));
   await browser?.close();
   backend.stdin.end();
   await Promise.race([

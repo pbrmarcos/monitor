@@ -2,7 +2,7 @@
 
 Central de operação pessoal com IA local para reunir demandas, e-mails, acompanhamento comercial, sites, redes sociais e arquivos.
 
-**Estado: versão `0.3.0-alpha.1`.** Demandas, kanban, e-mails IMAP, triagem local, sugestões, pasta de arquivos, backups e exportação. Agora inclui agenda persistente, central de avisos e resumo diário. Sites, redes sociais, catálogo de arquivos e chat ainda são demonstrações. Consulte a [validação](docs/VALIDATION.md).
+**Estado: versão `0.4.0-alpha.1`.** Demandas, kanban, e-mails IMAP, triagem local, sugestões, pasta de arquivos, backups, exportação, agenda e central de avisos. Agora inclui checagens dos sites e fila de formulários com relay para VPS. Redes sociais, catálogo de arquivos e chat ainda são demonstrações. Consulte a [validação](docs/VALIDATION.md).
 
 ## Objetivo
 
@@ -39,7 +39,7 @@ scripts/         Build Windows, avaliações e ferramentas futuras
 docs/            Planejamento e documentação
 ```
 
-Backend, frontend e desktop contêm as Fases 1 a 3. O relay permanece reservado para a Fase 4.
+Backend, frontend e desktop contêm as Fases 1 a 3 e a primeira entrega da Fase 4. O relay já pode ser configurado e instalado no VPS; monitor externo, métricas do host e teste semanal dos formulários continuam pendentes.
 
 O aplicativo será instalável no Windows. O Ollama executará a IA no PC; o relay receberá eventos enquanto o PC estiver desligado. Monitoramento externo deverá detectar indisponibilidade do próprio VPS.
 
@@ -69,7 +69,7 @@ npm run build
 
 O script gera o sidecar com PyInstaller, testa o executável e compila os instaladores NSIS/MSI em `dist/`. O workflow Windows desktop faz o mesmo no GitHub Actions. Os instaladores desta etapa não têm assinatura Authenticode nem atualizador ativo.
 
-Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. `--no-notifications` desativa a ponte de avisos nativos na sessão de teste. O MSI usa a versão interna numérica `0.3.0.1`.
+Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. `--no-notifications` desativa a ponte de avisos nativos na sessão de teste. O MSI usa a versão interna numérica `0.4.0.1`.
 
 Ollama é separado do instalador. Em Configurações, verifique a disponibilidade, ajuste o modelo e solicite o download. Sem Ollama, as regras continuam triando os e-mails e as mensagens aguardam na fila da IA.
 
@@ -80,6 +80,18 @@ A seção **Lembretes** permite criar agendamentos gerais ou vinculados a demand
 ![Agenda com dados de teste](docs/images/reminders.png)
 
 O aplicativo precisa estar aberto ou na bandeja. Com o computador desligado não há avisos; agendamentos atrasados são recuperados ao abrir novamente. A criação automática a partir de prazos explícitos nos e-mails começa desativada. Veja [como funciona a agenda](docs/AGENDA.md).
+
+## Sites e formulários
+
+Em **Sites**, cadastre os endereços, escolha a frente e, se quiser, uma frase esperada no HTML. O Monitor consulta a cada dois minutos enquanto estiver aberto ou na bandeja, verifica status HTTP, tempo de resposta, texto e validade do certificado HTTPS. Há botão de checagem, pausa, edição, histórico, incidentes e avisos de falha/recuperação e vencimento próximo do certificado. Após cinco minutos sem coleta, o resultado aparece como antigo. O percentual representa amostras bem-sucedidas, não disponibilidade contínua durante períodos desligados.
+
+Os quatro endereços informados estão disponíveis como sugestões, sem cadastro automático. A sugestão Rocha Comercial usa `https://rochacomercial.com.br`: em 12/11/2026, o domínio respondeu e a versão com `www` falhou no DNS da consulta local.
+
+![Sites com backend real e um endereço local de teste](docs/images/sites.png)
+
+O **relay** recebe formulários no VPS, guarda os contatos em SQLite e entrega ao PC com confirmação após gravação local. Contatos aguardam revisão antes de virar demanda; duplicatas de transporte não criam novos registros. Credenciais de envio ficam nos servidores dos sites, nunca no JavaScript público. Veja [instalação e integração dos formulários](relay/README.md). O código inclui Docker/Coolify e exemplos; nenhuma alteração ou implantação foi feita no VPS ou nos sites reais.
+
+Monitor externo independente do VPS, métricas de CPU/RAM/disco e teste sintético semanal ainda não foram implementados.
 
 ## Pasta de arquivos
 

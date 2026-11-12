@@ -141,3 +141,46 @@ class Notice(SQLModel, table=True):
     read: bool = False
     desktop_status: str = Field(default='pendente', index=True)
     created_at: datetime = Field(default_factory=now)
+
+
+class Site(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    url: str
+    front_id: int
+    expected_text: str = ''
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=now)
+
+
+class SiteCheck(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    site_id: int = Field(index=True)
+    checked_at: datetime = Field(default_factory=now, index=True)
+    ok: bool
+    status_code: int | None = None
+    latency_ms: int | None = None
+    detail: str = ''
+    ssl_expires: datetime | None = None
+
+
+class SiteIncident(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    site_id: int = Field(index=True)
+    opened_at: datetime = Field(default_factory=now)
+    closed_at: datetime | None = None
+    detail: str
+
+
+class FormEntry(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    source_key: str = Field(unique=True)
+    site_id: int
+    front_id: int
+    name: str
+    email: str
+    subject: str
+    message: str
+    received_at: datetime
+    status: str = 'pendente'
+    demand_id: int | None = None

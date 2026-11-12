@@ -1,0 +1,17 @@
+services:
+  relay:
+    build: .
+    restart: unless-stopped
+    environment:
+      RELAY_APP_TOKEN: ${RELAY_APP_TOKEN:?Defina o token do aplicativo}
+      RELAY_SITE_TOKENS: ${RELAY_SITE_TOKENS:?Defina o JSON com tokens por site}
+    volumes:
+      - relay-data:/data
+    ports:
+      - "127.0.0.1:8090:8000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  relay-data:

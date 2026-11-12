@@ -3,7 +3,6 @@ import {
   ArrowUpRight,
   FileText,
   Folder,
-  Globe,
   MessageSquare,
   Sparkles,
 } from "lucide-react";
@@ -12,56 +11,6 @@ import { files } from "../demo";
 import { newDemand, type Monitor } from "../store";
 import { Callout, Empty, frontLabel, Panel, sample, soon } from "../ui";
 import { SocialTable } from "./Overview";
-
-export function Sites({ m }: { m: Monitor }) {
-  if (!m.preview)
-    return (
-      <Panel title="Monitoramento" action={soon}>
-        <Empty
-          icon={Globe}
-          text="Disponibilidade, tempo de resposta, validade do SSL e teste dos formulários chegam em uma próxima versão."
-        />
-      </Panel>
-    );
-  return (
-    <>
-      <Callout>
-        Dados de demonstração. Nenhum site real está sendo verificado.
-      </Callout>
-      <div className="grid-2">
-        {[1, 2, 3, 4]
-          .filter((n) => !m.front || m.front === n)
-          .map((n) => (
-            <Panel key={n} title={`frente0${n}.example`} action={sample}>
-              <div className="panel-body">
-                <div className="split">
-                  <span>
-                    <span className="dot" /> Online
-                  </span>
-                  <strong>99,98%</strong>
-                </div>
-                <div className="uptime" aria-hidden>
-                  {Array.from({ length: 30 }, (_, i) => (
-                    <span key={i} />
-                  ))}
-                </div>
-                <dl className="facts">
-                  <div>
-                    <dt>Resposta</dt>
-                    <dd>{180 + n * 17} ms</dd>
-                  </div>
-                  <div>
-                    <dt>SSL</dt>
-                    <dd>82 dias</dd>
-                  </div>
-                </dl>
-              </div>
-            </Panel>
-          ))}
-      </div>
-    </>
-  );
-}
 
 export function Social({ m }: { m: Monitor }) {
   return (

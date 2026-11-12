@@ -589,7 +589,7 @@ function Application() {
         <hr />
         <h3>Próximas integrações</h3>
         {[
-          "Sites e formulários",
+          "Formulários dos sites e monitor externo",
           "Catálogo de arquivos do OneDrive",
           "Assistente com consulta aos seus dados",
           "Instagram e WhatsApp",

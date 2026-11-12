@@ -21,11 +21,11 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from . import ai, inbox, mail, storage, reminders, agenda_api
+from . import ai, inbox, mail, storage, reminders, agenda_api, sites, forms
 from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Event, Setting, Suggestion, as_utc, now
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
-VERSION = '0.3.0-alpha.1'
+VERSION = '0.4.0-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
@@ -40,7 +40,7 @@ class DemandInput(BaseModel):
     next_action: str = Field(default='', max_length=2000)
     return_date: date | None = None
     summary: str = Field(default='', max_length=6000)
-    origin_ref: str = Field(default='', max_length=60, pattern=r'^(email:\d+)?$')
+    origin_ref: str = Field(default='', max_length=60, pattern=r'^((email|form):\d+)?$')
 
     @model_validator(mode='after')
     def validate_demand(self):
@@ -94,7 +94,7 @@ def migrate(engine):
         reminder_columns = {row[1] for row in connection.execute(text('PRAGMA table_info(reminder)'))}
         if 'revision' not in reminder_columns:
             connection.execute(text('ALTER TABLE reminder ADD COLUMN revision INTEGER NOT NULL DEFAULT 0'))
-        for version in (1, 2, 3):
+        for version in (1, 2, 3, 4):
             connection.execute(text('INSERT OR IGNORE INTO schema_migrations VALUES (:v)'), {'v': version})
 
 
@@ -199,6 +199,8 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
             start = datetime.now() + timedelta(seconds=8)
             scheduler.add_job(lambda: reminders.generate(engine, demo=demo), IntervalTrigger(seconds=10), next_run_time=start)
             if not demo:
+                scheduler.add_job(lambda: sites.check_all(engine), IntervalTrigger(minutes=2), next_run_time=start + timedelta(seconds=2))
+                scheduler.add_job(lambda: forms.sync(engine, vault), IntervalTrigger(minutes=1), next_run_time=start + timedelta(seconds=4))
                 scheduler.add_job(lambda: inbox.sync_all(engine, vault, connector), IntervalTrigger(minutes=2), next_run_time=start)
                 scheduler.add_job(lambda: inbox.process_queue(engine), IntervalTrigger(seconds=20), next_run_time=start)
                 scheduler.add_job(backup_if_due, IntervalTrigger(hours=3), next_run_time=start + timedelta(seconds=30))
@@ -214,6 +216,8 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     app.state.engine = engine
     app.state.vault = vault
     app.include_router(agenda_api.router(engine, session, demo))
+    app.include_router(sites.router(engine, session, demo))
+    app.include_router(forms.router(engine, session, vault, demo))
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, error):
@@ -243,6 +247,17 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
 
     @app.post('/demands', status_code=201)
     def create(payload: DemandInput, db: Session = Depends(session)):
+        db.execute(text('BEGIN IMMEDIATE'))
+        if payload.origin_ref.startswith('email:'):
+            duplicate = forms.demand_for_email(db, db.get(Email, int(payload.origin_ref[6:])), payload.front_id)
+            if duplicate:
+                pending = db.exec(select(Suggestion).where(Suggestion.email_id == int(payload.origin_ref[6:]), Suggestion.status == 'pendente')).first()
+                if pending:
+                    pending.status, pending.demand_id = 'aceita', duplicate.id
+                    db.add(pending)
+                db.commit()
+                db.refresh(duplicate)
+                return duplicate
         item = Demand(**payload.model_dump())
         db.add(item)
         db.flush()
@@ -465,7 +480,15 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
 
     @app.post('/suggestions/{identifier}/accept', status_code=201)
     def accept(identifier: int, db: Session = Depends(session)):
+        db.execute(text('BEGIN IMMEDIATE'))
         item = pending_suggestion(identifier, db)
+        duplicate = forms.demand_for_email(db, db.get(Email, item.email_id), item.front_id)
+        if duplicate:
+            item.status, item.demand_id = 'aceita', duplicate.id
+            db.add(item)
+            db.commit()
+            db.refresh(duplicate)
+            return duplicate
         demand = Demand(title=item.title, front_id=item.front_id, contact=item.contact, channel='email',
                         due=item.due, summary=item.summary, origin_ref=f'email:{item.email_id}', created_by='ia')
         db.add(demand)

@@ -1,0 +1,39 @@
+name: Relay container
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['relay/**', 'scripts/relay_container_smoke.py', '.github/workflows/relay.yml']
+  pull_request:
+    paths: ['relay/**', 'scripts/relay_container_smoke.py', '.github/workflows/relay.yml']
+permissions:
+  contents: read
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Synthetic public test credentials. Never use these in a deployed relay.
+      RELAY_APP_TOKEN: ci-app-token-000000000000000000000000
+      RELAY_SITE_TOKENS: '{"1":"ci-site-token-00000000000000000000000"}'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build relay
+        run: docker build -t monitor-relay ./relay
+      - name: Start as non-root with persistent volume
+        run: docker run -d --name monitor-relay -p 127.0.0.1:8090:8000 -v relay-data:/data -e RELAY_APP_TOKEN -e RELAY_SITE_TOKENS monitor-relay
+      - name: Validate intake and restart persistence
+        run: |
+          python scripts/relay_container_smoke.py send
+          docker restart monitor-relay
+          python scripts/relay_container_smoke.py ack
+      - name: Check PHP adapter syntax
+        run: docker run --rm -v "$PWD/relay/examples:/examples:ro" php:8.3-cli php -l /examples/forward.php
+      - name: Logs and cleanup
+        if: always()
+        run: |
+          docker logs monitor-relay || true
+          docker rm -f monitor-relay || true
