@@ -1,6 +1,6 @@
 # Validação
 
-Situação em 12/11/2026, versão `0.3.0-alpha.1` (Fases 1 a 3 e pasta de arquivos). Sites, redes sociais, catálogo de arquivos e chat não estão conectados.
+Situação em 12/11/2026, versão `0.5.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
 
 ## Assistente, Google Agenda e ajustes de uso (0.5.0-alpha.1)
 
@@ -11,8 +11,8 @@ Em 12/11/2026: 46 testes de backend e 3 de componentes passaram; TypeScript e Vi
 - **Google Agenda.** Testado com um Google simulado: autorização com PKCE e `state`, token só no cofre, criação, atualização, recriação de evento apagado, remoção ao encerrar a demanda, repetição sem chamadas quando nada mudou, acesso revogado e modo de demonstração sem tráfego. **Nenhuma conta Google real foi conectada.**
 - **Personalização.** Os testes cobrem perfil, nomes das frentes e cores, incluindo a recusa de cor principal clara, de imagem que não seja PNG/JPEG/WebP e de frente sem nome. O teste integrado troca o nome de uma frente, o perfil e a paleta pela interface e confere que persistem após recarregar. O nome novo da frente chega ao contexto do assistente.
 - **Instagram.** Testado com um Instagram simulado: token só no cofre, foto copiada para o banco, totais, posts, curtidas e comentários da semana, variação de seguidores contra a coleta de 7 dias antes, stories indisponíveis mostrados como ausentes, token expirado e modo de demonstração sem tráfego. **Nenhum perfil real foi conectado**; os nomes dos campos da API vêm da documentação da Meta e não foram conferidos contra o serviço.
-- **Atualização pelo aplicativo.** A chave de assinatura foi gerada e a sintaxe do script de build conferida. **Nada foi compilado nem executado**: o plugin Rust, a assinatura dos instaladores, o manifesto, a publicação da release e a instalação da atualização (incluindo o encerramento do backend pelo instalador) dependem do GitHub Actions e do aplicativo instalado. O `Cargo.lock` versionado não inclui o plugin novo.
-- **Não validado:** build Windows desta versão no GitHub Actions e uso no aplicativo instalado.
+- **Atualização pelo aplicativo.** Com autorização explícita do usuário, a chave existente foi cadastrada no segredo protegido do GitHub, sem entrar no repositório. O [build Windows de 15c3903](https://github.com/pbrmarcos/monitor/actions/runs/43280202593) passou com 46 testes de backend, 3 de componentes, sidecar, scheduler, frontend, Rust e instaladores. Gerou duas assinaturas e publicou a release e o manifesto `latest.json` do canal `updates`. O `Cargo.lock` resolvido pelo build foi recuperado e versionado; os pacotes distribuídos são os artefatos dessa execução.
+- **Não validado:** instalação efetiva pelo botão do atualizador, preservação de dados nessa instalação e demais interações nativas no aplicativo instalado. Google Agenda e Instagram ainda dependem de validação com contas reais.
 
 ## Agenda (Fase 3)
 

@@ -67,7 +67,7 @@ npm run build
 ./scripts/build_windows.ps1 -Python .venv/Scripts/python.exe
 ```
 
-O script gera o sidecar com PyInstaller, testa o executável e compila os instaladores NSIS/MSI em `dist/`. O workflow Windows desktop faz o mesmo no GitHub Actions. Os instaladores desta etapa não têm assinatura Authenticode nem atualizador ativo.
+O script gera o sidecar com PyInstaller, testa o executável e compila os instaladores NSIS/MSI em `dist/`. O workflow Windows desktop faz o mesmo no GitHub Actions. Os instaladores não têm assinatura Authenticode. As assinaturas próprias do atualizador são geradas no build com a chave guardada no segredo protegido do repositório; elas não removem os avisos do SmartScreen.
 
 Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. `--no-notifications` desativa a ponte de avisos nativos na sessão de teste. O MSI usa a versão interna numérica `0.5.0.1`.
 

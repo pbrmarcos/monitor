@@ -14,10 +14,10 @@ A versão `0.5.0-alpha.1` é a primeira com esse botão. Quem tem uma versão an
 ## Configuração única
 
 1. A chave privada foi gerada neste computador em `C:\Users\marco\.tauri\monitor-updater.key` (sem senha). **Guarde uma cópia em local seguro**: sem ela não é possível publicar atualizações para quem já instalou. Ela nunca deve entrar no repositório.
-2. Cadastre a chave como segredo do repositório no GitHub (Settings › Secrets and variables › Actions › New repository secret), com o nome `TAURI_SIGNING_PRIVATE_KEY` e o conteúdo do arquivo. Pela linha de comando:
+2. A chave foi cadastrada, com autorização do usuário, no segredo protegido `TAURI_SIGNING_PRIVATE_KEY` do repositório `pbrmarcos/monitor`. Para restaurar a configuração no futuro, use Settings › Secrets and variables › Actions › New repository secret ou a linha de comando, sem imprimir o conteúdo:
 
    ```powershell
-   gh secret set TAURI_SIGNING_PRIVATE_KEY --repo pbrmarcos/monitor < $env:USERPROFILE\.tauri\monitor-updater.key
+   Get-Content -LiteralPath "$env:USERPROFILE\.tauri\monitor-updater.key" -Raw | gh secret set TAURI_SIGNING_PRIVATE_KEY --repo pbrmarcos/monitor
    ```
 
 Sem o segredo, o build continua gerando os instaladores, mas sem assinatura e sem manifesto; o botão responde que não há atualização.
@@ -32,6 +32,6 @@ A partir daí, o botão encontra a versão nova nos computadores instalados.
 
 ## Limites
 
-- Nada disso foi executado ainda: a compilação com o plugin de atualização, a assinatura, a publicação e a instalação pela atualização só podem ser conferidas no GitHub Actions e no aplicativo instalado.
+- A compilação com o plugin, as duas assinaturas e a publicação do manifesto passaram no [build Windows da versão 0.5](https://github.com/pbrmarcos/monitor/actions/runs/43280202593). A instalação efetiva pelo botão, incluindo fechamento e reabertura e preservação dos dados, ainda exige validação manual no aplicativo instalado.
 - Os instaladores não têm assinatura Authenticode; o Windows pode mostrar o aviso do SmartScreen na instalação manual.
 - A verificação é manual, pelo botão. O Monitor não procura atualizações sozinho.
