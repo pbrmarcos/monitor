@@ -43,7 +43,9 @@ await page.getByLabel(/Data de retorno/).fill("2026-12-15");
 await page.getByRole("button", { name: "Salvar demanda" }).click();
 await shot("kanban");
 // Arrastar um cartão para outra coluna com o ponteiro.
-const card = page.locator(".kanban-card", { hasText: "Preparar proposta para Ana" });
+const card = page.locator(".kanban-card", {
+  hasText: "Preparar proposta para Ana",
+});
 const destination = page.getByRole("region", { name: "Proposta enviada" });
 const from = await card.boundingBox();
 const to = await destination.boundingBox();
@@ -81,17 +83,57 @@ if ((await page.locator(".social-card").count()) !== 4)
   throw new Error("Esperados quatro cartões de perfis na demonstração");
 await go("Visão geral");
 await page.setViewportSize({ width: 2560, height: 1392 });
+await page
+  .getByRole("button", { name: "O que priorizar hoje?", exact: true })
+  .click();
+// Balões acompanham o texto; não herdam a altura de 100vh do painel lateral.
+async function compactMessages() {
+  const sizes = await page
+    .locator(".chat-log .message")
+    .evaluateAll((messages) =>
+      messages.map((message) => {
+        const text = document.createRange();
+        text.selectNodeContents(message);
+        const style = getComputedStyle(message);
+        return {
+          height: message.getBoundingClientRect().height,
+          limit:
+            text.getBoundingClientRect().height +
+            parseFloat(style.paddingTop) +
+            parseFloat(style.paddingBottom) +
+            parseFloat(style.borderTopWidth) +
+            parseFloat(style.borderBottomWidth) +
+            12,
+          position: style.position,
+        };
+      }),
+    );
+  if (
+    sizes.length < 2 ||
+    sizes.some((s) => s.height > s.limit || s.position !== "static")
+  )
+    throw new Error(`Balões do assistente esticados: ${JSON.stringify(sizes)}`);
+}
+await compactMessages();
+await shot("assistant-compact-bubbles");
 await shot("overview-wide");
 // Em tela larga o conteúdo ocupa toda a área entre o menu e o assistente.
 const used = await page.evaluate(() => {
-  const box = (selector) => document.querySelector(selector).getBoundingClientRect();
+  const box = (selector) =>
+    document.querySelector(selector).getBoundingClientRect();
   return box(".assistant").left - box(".content").right;
 });
 if (used > 48) throw new Error(`Sobram ${used}px à direita do conteúdo`);
 await go("Demandas");
 await shot("kanban-wide");
 await go("Visão geral");
+await page.setViewportSize({ width: 1600, height: 1050 });
+await compactMessages();
+await go("Assistente");
+await compactMessages();
+await go("Visão geral");
 await page.setViewportSize({ width: 820, height: 1000 });
+await compactMessages();
 await shot("compact");
 if (errors.length) throw new Error(errors.join("\n"));
 console.log(

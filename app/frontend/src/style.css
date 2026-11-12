@@ -1308,7 +1308,7 @@ input[type="color"] {
   border-radius: var(--radius-control);
   font-size: var(--text-small);
 }
-.message.user {
+.message.message-user {
   justify-self: end;
   max-width: 85%;
   border-color: var(--subtle);

@@ -73,7 +73,7 @@ try {
       .getByRole("button", { name: "Limpar conversa" })
       .and(page.locator(":enabled"))
       .waitFor({ timeout: 300000 });
-    const answer = await page.locator(".message.assistant").last();
+    const answer = await page.locator(".message.message-assistant").last();
     if (await page.locator(".message.error").count())
       throw new Error(`Chat falhou: ${await answer.innerText()}`);
     const text = await answer.innerText();

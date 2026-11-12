@@ -201,7 +201,7 @@ export function Chat({ chat }: { chat: ReturnType<typeof useChat> }) {
         {chat.messages.map((message, i) => (
           <div
             key={i}
-            className={`message ${message.role} ${message.error ? "error" : ""}`}
+            className={`message message-${message.role} ${message.error ? "error" : ""}`}
           >
             {message.text || "Pensando…"}
           </div>
