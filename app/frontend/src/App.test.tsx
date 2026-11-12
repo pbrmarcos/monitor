@@ -1,7 +1,8 @@
 import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vitest";
-import App, { DemandModal } from "./App";
+import App from "./App";
+import { DemandModal } from "./DemandModal";
 afterEach(cleanup);
 HTMLDialogElement.prototype.showModal = function () {
   this.open = true;

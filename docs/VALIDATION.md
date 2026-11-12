@@ -1,34 +1,39 @@
-# Validação da base desktop
+# Validação
 
-Fase 1 em andamento. E-mails, sites, redes, arquivos e chat não estão conectados. As respectivas telas exibem avisos de demonstração ou fase futura.
+Situação em 12/11/2026, versão `0.2.0-alpha.1` (Fases 1 e 2 e pasta de arquivos). Sites, redes sociais, catálogo de arquivos e chat não estão conectados; as telas mostram “Em breve” ou dados de demonstração.
 
-## Verificações
+## O que foi executado nesta versão
 
-Validação local em 12/11/2026: 5 testes backend e 2 testes de componentes passaram; TypeScript/Vite compilou; teste visual de criação/edição e viewport compacto passou; sidecar empacotado passou incluindo encerramento pelo pipe do processo pai. Auditoria npm: zero vulnerabilidades no conjunto instalado. Ollama foi testado com transporte simulado (status, configuração, progresso e indisponibilidade); nenhum modelo foi baixado.
+| Verificação | Resultado |
+|---|---|
+| `pytest app/backend/tests` | 15 testes passaram |
+| `npm test` (componentes) | 2 testes passaram |
+| `tsc --noEmit` | sem erros |
+| `scripts/ui_smoke.mjs` (prévia, Edge headless) | passou: sugestão, criação, edição, e-mails, oito telas, larguras de 820, 1600 e 2560 px, nenhum texto abaixo de 11 px |
+| `scripts/integration_smoke.mjs` (API e SQLite reais, IPC simulado) | passou: criação, persistência, histórico, pasta de arquivos e backup |
+| Sidecar PyInstaller com `keyring` e `APScheduler` + `scripts/desktop_smoke.py` | passou: handshake, autenticação, criação e banco local |
+| `scripts/eval_emails.py docs/eval-exemplo.csv --so-regras` | executa; os 5 exemplos são fictícios e não medem qualidade real |
 
-O teste integrado também passou com frontend, HTTP e SQLite reais: criação, recarga da tela, persistência e consulta do histórico. Somente a camada IPC nativa é simulada nesse teste; ele não substitui a validação da janela Tauri.
+Cobertura dos testes de backend:
 
-## Build da alpha
+- Demandas: autenticação, validação, data de retorno, histórico, persistência, banco de demonstração separado.
+- E-mails: coleta por servidor IMAP falso com `EXAMINE` e `BODY.PEEK` e nenhum comando de escrita; senha fora do banco e das respostas; remoção de assinatura; deduplicação; remoção de conta.
+- Regras e prazos: “sexta”, “amanhã”, “até dia 15”, “semana que vem”, datas por extenso; orçamento, remetente prioritário, cliente com demanda aberta, publicidade, confiança baixa e prazo inventado pela IA.
+- Fila da IA: Ollama fora do ar mantém a fila; JSON inválido gera nova tentativa; correções do usuário entram como exemplos; credenciais nunca vão no prompt.
+- Pasta de arquivos: validação do caminho, estrutura, backup pela API do SQLite, exportação CSV, escolha do instalador como padrão.
+- Migração de um banco da Fase 1 para o esquema atual.
 
-O commit `2f0446d` passou no [workflow Windows](https://github.com/pbrmarcos/monitor/actions/runs/43206052108), com os cinco testes backend, dois testes de componentes, sidecar empacotado e instaladores NSIS/MSI. Os artefatos finais foram baixados para conferência.
+## O que não foi validado
 
-O executável desktop foi iniciado com dados de demonstração isolados e `--no-autostart`; a janela “Monitor — Sua central de operação” foi localizada no Windows. A inspeção pela ferramenta de controle do computador expirou aguardando autorização. Portanto, interação manual com a janela, bandeja e instalador permanece pendente; a detecção da janela não comprova esses fluxos.
+- **Instalador com a página “Pasta de arquivos”.** O modelo NSIS (`app/desktop/src-tauri/windows/`) não foi compilado: não há Rust nesta máquina e a compilação isolada com NSIS não pôde ser executada. O primeiro build no GitHub Actions é a validação. O MSI não tem essa página; nele a pasta é escolhida no aplicativo.
+- **Código Rust.** A inclusão do plugin de diálogo e o `Cargo.lock` serão resolvidos no primeiro build; o `Cargo.lock` versionado ainda não lista `tauri-plugin-dialog`.
+- **Contas IMAP reais.** A coleta só rodou contra o servidor falso. Falta testar com as quatro caixas, incluindo certificados, pastas e volume real.
+- **Gerenciador de Credenciais do Windows.** Os testes usam um cofre em memória; a gravação real da senha não foi exercitada.
+- **Ollama real.** A chamada com saída estruturada foi testada com transporte simulado. Nenhum modelo foi baixado ou medido.
+- **Janela, bandeja, instância única e autostart** continuam pendentes desde a Fase 1.
 
-- Backend: autenticação, campos inválidos, data de retorno obrigatória, CRUD, histórico, persistência e separação do banco de demonstração.
-- Frontend: oito telas, filtro por frente e validação de formulário.
-- Teste visual: criação e edição, acompanhamento com data e viewport compacto.
-- Sidecar: handshake, API autenticada e banco local por executável PyInstaller.
-- Auditoria npm após atualização das ferramentas de teste.
-- CI Windows: testes, empacotamento e compilação Rust/Tauri. Conferir resultado antes de publicar instalador.
+## Pendências que dependem do Marcos
 
-## Pendências para concluir a Fase 1
-
-O workflow Windows passou para o commit `b95c6a9`: compilação Rust/Tauri e geração de NSIS e MSI concluídas. A versão MSI numérica foi definida explicitamente como `0.1.0.1`. Os ajustes posteriores passam por novo build antes da publicação da alpha.
-
-- Validar instalador, janela, bandeja, instância única e autostart numa sessão Windows.
-- Validar recuperação da queda do backend na sessão desktop (a interface já aguarda o endpoint de saúde e escuta o reinício).
-- Testar download do modelo explicitamente escolhido no hardware alvo.
-- Indicador de alerta e pausa de workers dependem dos workers das próximas fases; o menu identifica a indisponibilidade nesta etapa.
-- Notificações com navegação e atualização assinada não estão ativas.
-
-Nenhuma conta ou credencial real é necessária nesta fase.
+- Rodar o workflow Windows e instalar o `.exe` gerado, conferindo a página de pasta.
+- Dados das contas: servidor IMAP, porta, usuário e senha de cada frente.
+- Instalar o Ollama e baixar o modelo; depois rotular um CSV de e-mails reais e rodar `scripts/eval_emails.py`.

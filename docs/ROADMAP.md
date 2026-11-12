@@ -1,16 +1,17 @@
 # Roteiro de entrega
 
-A Fase 1 está em desenvolvimento; as demais estão pendentes. A release v0.0.1 registra a especificação inicial, anterior ao código. Consulte `VALIDATION.md` para validação e pendências.
+Situação em 12/11/2026. Detalhes de cada verificação em `VALIDATION.md`; regras de interface em `DESIGN.md`.
 
-| Fase | Escopo | Critério de entrega |
+| Fase | Escopo | Situação |
 |---|---|---|
-| 1 | Base desktop | Monorepo, persistência e migrações, oito telas, CRUD de demandas, kanban, Tauri e sidecar, bandeja e instalador Windows validados |
-| 2 | E-mails | IMAP somente leitura, keyring, fila de IA, regras, sugestões e avaliação com dados rotulados |
-| 3 | Lembretes | Agendamento persistente, notificações e resumo diário |
-| 4 | Sites e relay | Formulários persistidos, deduplicação, verificações, incidentes e monitor externo |
-| 5 | Arquivos | Catálogo do OneDrive, extração, busca e backup consistente do banco |
-| 6 | Assistente | Consultas ao banco, fontes citadas e confirmação de ações |
-| 7 | Redes sociais | Provedores oficiais, snapshots, mensagens e Discord opcional |
+| 1 | Base desktop: monorepo, banco e migrações, oito telas, demandas, kanban, Tauri e sidecar, bandeja, instalador | Código entregue. Falta validar manualmente instalador, bandeja, instância única e autostart numa sessão Windows |
+| 2 | E-mails: IMAP somente leitura, credenciais no Windows, fila de IA, regras, sugestões, correções, avaliação | Código entregue e testado com servidor IMAP e Ollama simulados. Falta validar com contas reais e medir o modelo com e-mails rotulados |
+| 2b | Pasta de arquivos: escolha no instalador e nas Configurações, backup diário e exportação | Código entregue. A página do instalador ainda não foi compilada (depende do build no CI) |
+| 3 | Lembretes: agendamento persistente, notificações do Windows, resumo diário às 7h30 | Próxima |
+| 4 | Sites e relay: formulários, deduplicação, verificações, incidentes, monitor externo | Pendente |
+| 5 | Arquivos: catálogo da pasta, extração de texto, busca, classificação | Pendente (pasta e backup já entregues em 2b) |
+| 6 | Assistente: consultas ao banco, fontes citadas, ações com confirmação | Pendente |
+| 7 | Redes sociais: provedores oficiais, snapshots, mensagens, Discord opcional | Pendente |
 
 ## Antes de considerar uma fase concluída
 
@@ -18,13 +19,19 @@ A Fase 1 está em desenvolvimento; as demais estão pendentes. A release v0.0.1 
 - Atualizar instruções, limitações e requisitos de configuração.
 - Separar dados de demonstração de integrações reais.
 - Informar dependências externas e aprovações pendentes.
+- Conferir as telas novas contra `DESIGN.md`.
 
 ## Decisões a validar
 
 - Disponibilidade da tag do modelo Ollama e consumo real de memória na GPU de 6 GB.
+- Recall da triagem com e-mails reais rotulados (`scripts/eval_emails.py`). A meta de 95% é um alvo, não um resultado medido.
 - Requisitos e permissões das contas profissionais da Meta.
-- Capacidade do VPS e estratégia de operação enquanto o PC estiver desligado.
+- Capacidade do VPS e operação enquanto o PC estiver desligado.
 - Monitoramento externo independente do VPS.
-- Empacotamento e ciclo de vida do backend no Windows.
 
-O critério de 95% de recall em e-mails importantes é uma meta de avaliação, não um resultado medido ou uma garantia.
+## Diferenças em relação ao briefing
+
+- A pasta de arquivos é escolhida no instalador. O banco em uso continua em `%LOCALAPPDATA%\Monitor`, como o briefing pede; para a pasta vão o backup diário, as exportações e, na Fase 5, os arquivos organizados.
+- A coleta de e-mail usa consulta a cada 2 minutos; IDLE não foi implementado.
+- Só a caixa de entrada é lida. Outras pastas ficam para quando houver necessidade.
+- A criação automática de lembretes para prazos explícitos depende da Fase 3.

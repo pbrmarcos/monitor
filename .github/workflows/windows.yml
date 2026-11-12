@@ -28,6 +28,7 @@ jobs:
             ~/.cargo/git
             app/desktop/src-tauri/target
           key: windows-rust-${{ hashFiles('app/desktop/src-tauri/Cargo.toml') }}
+          restore-keys: windows-rust-
       - name: Build and test
         shell: pwsh
         run: ./scripts/build_windows.ps1

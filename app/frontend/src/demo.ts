@@ -1,5 +1,9 @@
-import type { Demand } from "./api";
+import type { Analysis, Demand, Email, Suggestion } from "./api";
+
 export const today = () => new Date().toLocaleDateString("en-CA");
+const hoursAgo = (hours: number) =>
+  new Date(Date.now() - hours * 3600000).toISOString();
+
 export const demoDemands: Demand[] = [
   {
     id: 1,
@@ -54,33 +58,109 @@ export const demoDemands: Demand[] = [
     summary: "Acompanhamento de demonstração.",
   },
 ];
-export const emails = [
+
+const analysis = (values: Partial<Analysis>): Analysis => ({
+  categoria: "outro",
+  importancia: "revisar",
+  motivo: "",
+  resumo: "",
+  acao_sugerida: null,
+  prazo_texto: null,
+  prazo_iso: null,
+  trecho_prazo: null,
+  confianca: 0.9,
+  modelo: "demonstração",
+  correcao: null,
+  provisional: false,
+  ...values,
+});
+const email = (
+  id: number,
+  front: number,
+  sender: string,
+  subject: string,
+  body: string,
+  result: Partial<Analysis>,
+): Email => ({
+  id,
+  account_id: front,
+  account: `contato@frente0${front}.example`,
+  front_id: front,
+  sender,
+  subject,
+  date: hoursAgo(id * 3),
+  body,
+  has_attachments: false,
+  analysis_status: "analisado",
+  analysis: analysis({ resumo: body, ...result }),
+  demand_id: null,
+  suggestion_id: id === 1 ? 1 : null,
+});
+
+export const demoEmails: Email[] = [
+  email(
+    1,
+    1,
+    "Ana Souza <ana@cliente.example>",
+    "Orçamento para novo projeto",
+    "Olá, Marcos! Gostaria de receber um orçamento para nosso novo projeto. Preciso da proposta até sexta.",
+    {
+      categoria: "orcamento",
+      importancia: "acao",
+      motivo: "Pedido de orçamento com prazo.",
+      acao_sugerida: "Enviar proposta para Ana",
+      prazo_texto: "sexta",
+      trecho_prazo: "Preciso da proposta até sexta.",
+    },
+  ),
+  email(
+    2,
+    2,
+    "Pedro Lima <pedro@cliente.example>",
+    "Briefing e referências",
+    "Segue o briefing para revisão. Podemos alinhar os detalhes na próxima conversa?",
+    {
+      categoria: "cliente",
+      importancia: "importante",
+      motivo: "Cliente enviou material para revisão.",
+      acao_sugerida: "Revisar o briefing",
+    },
+  ),
+  email(
+    3,
+    3,
+    "Boletim de design <newsletter@boletim.example>",
+    "Referências da semana",
+    "Uma seleção de novidades e referências para sua leitura.",
+    {
+      categoria: "publicidade",
+      importancia: "info",
+      motivo: "Boletim informativo.",
+    },
+  ),
+  email(
+    4,
+    4,
+    "Carla Dias <carla@fornecedor.example>",
+    "Sobre a entrega do material",
+    "Oi! Acho que conseguimos entregar na semana que vem, mas ainda preciso confirmar.",
+    {
+      categoria: "fornecedor",
+      importancia: "revisar",
+      motivo: "Data ambígua, confira o prazo.",
+      prazo_texto: "semana que vem",
+    },
+  ),
+];
+export const demoSuggestions: Suggestion[] = [
   {
     id: 1,
-    front: 1,
-    from: "Ana Souza",
-    subject: "Orçamento para novo projeto",
-    body: "Olá, Marcos! Gostaria de receber uma proposta para nosso novo projeto. Podemos conversar sobre o escopo?",
-    category: "Orçamento",
-    importance: "Precisam de ação",
-  },
-  {
-    id: 2,
-    front: 2,
-    from: "Pedro Lima",
-    subject: "Briefing e referências",
-    body: "Segue o briefing para revisão. Podemos alinhar os detalhes na próxima conversa?",
-    category: "Cliente",
-    importance: "Revisar",
-  },
-  {
-    id: 3,
-    front: 3,
-    from: "Boletim de design",
-    subject: "Referências da semana",
-    body: "Uma seleção de novidades e referências para sua leitura.",
-    category: "Informativo",
-    importance: "Informativos",
+    email_id: 1,
+    front_id: 1,
+    title: "Enviar proposta para Ana",
+    contact: "Ana Souza <ana@cliente.example>",
+    summary: "Pedido de orçamento para um novo projeto, com prazo até sexta.",
+    due: null,
   },
 ];
 export const files = [

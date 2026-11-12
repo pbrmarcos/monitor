@@ -9,7 +9,7 @@ if (-not $SkipInstall) {
 }
 Invoke-Checked { & $Python -m pytest app/backend/tests }
 Invoke-Checked { npm.cmd test }
-Invoke-Checked { & $Python -m PyInstaller --clean --noconfirm --onefile --name monitor-backend --paths app/backend --distpath app/desktop/src-tauri/binaries app/backend/run_backend.py }
+Invoke-Checked { & $Python -m PyInstaller --clean --noconfirm --onefile --name monitor-backend --hidden-import keyring.backends.Windows --collect-data tzdata --paths app/backend --distpath app/desktop/src-tauri/binaries app/backend/run_backend.py }
 Invoke-Checked { & $Python scripts/desktop_smoke.py }
 $targetTriple = ((rustc -vV | Select-String '^host:').ToString() -split ': ')[1].Trim()
 if (-not $targetTriple) { throw 'Não foi possível identificar o target Rust.' }

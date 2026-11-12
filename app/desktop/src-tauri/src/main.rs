@@ -87,12 +87,13 @@ fn main() {
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(backend)
         .invoke_handler(tauri::generate_handler![connection])
         .setup(move |app| {
             let open = MenuItem::with_id(app, "open", "Abrir Monitor", true, None::<&str>)?;
             let new = MenuItem::with_id(app, "new", "Nova demanda", true, None::<&str>)?;
-            let pause = MenuItem::with_id(app, "pause", "Verificações disponíveis nas próximas fases", false, None::<&str>)?;
+            let pause = MenuItem::with_id(app, "pause", "Pausar verificações (em breve)", false, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Sair", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &new, &pause, &quit])?;
             let icon = tauri::image::Image::new_owned(include_bytes!("../icons/tray.rgba").to_vec(), 32, 32);

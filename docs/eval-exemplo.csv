@@ -1,0 +1,6 @@
+de;para;assunto;corpo;importante;prazo_iso
+Ana Souza <ana@cliente.example>;contato@frente01.example;Site novo;Olá! Gostaria de receber um orçamento para o site. Preciso da proposta até 20/11/2026.;sim;2026-11-20
+Pedro Lima <pedro@cliente.example>;contato@frente02.example;Contrato;Envie o contrato assinado até 18/11/2026, por favor.;sim;2026-11-18
+Loja <newsletter@loja.example>;contato@frente03.example;Ofertas da semana;Confira as promoções. Para sair da lista, clique em unsubscribe.;nao;
+Carla Dias <carla@fornecedor.example>;contato@frente04.example;Entrega;Acho que entregamos na semana que vem, a confirmar.;sim;
+Sistema <no-reply@servico.example>;contato@frente01.example;Seu relatório mensal;Seu relatório está disponível. Para sair, unsubscribe.;nao;

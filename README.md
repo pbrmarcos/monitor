@@ -2,7 +2,7 @@
 
 Central de operação pessoal com IA local para reunir demandas, e-mails, acompanhamento comercial, sites, redes sociais e arquivos.
 
-**Estado: Fase 1 em desenvolvimento.** A versão `v0.0.1` registra a especificação inicial. O código atual implementa demandas, persistência, kanban e oito telas. As integrações de e-mail, sites, redes, arquivos e chat ainda são demonstrações. Consulte [validação](docs/VALIDATION.md).
+**Estado: versão `0.2.0-alpha.1`.** Já funcionam demandas e kanban, coleta de e-mails por IMAP em modo somente leitura, triagem por regras e IA local, sugestões de demanda, pasta de arquivos com backup diário e exportação. Sites, redes sociais, catálogo de arquivos e chat ainda são demonstrações. Veja o que foi e o que não foi testado em [validação](docs/VALIDATION.md).
 
 ## Objetivo
 
@@ -22,6 +22,7 @@ A IA sugere; ações dependem das regras e confirmações da interface. E-mails 
 - [Especificação completa](prompt-codex-monitor.md)
 - [Protótipo das telas](<Monitor — Protótipo.pdf>)
 - [Fases e critérios de entrega](docs/ROADMAP.md)
+- [Regras de interface](docs/DESIGN.md)
 - [Notas da primeira release](docs/releases/v0.0.1.md)
 
 O briefing e o PDF são referências de produto, não demonstrações de funcionalidades implementadas. Modelos, métricas e requisitos de provedores deverão ser validados durante a implementação.
@@ -38,11 +39,11 @@ scripts/         Build Windows, avaliações e ferramentas futuras
 docs/            Planejamento e documentação
 ```
 
-Backend, frontend e desktop contêm a implementação inicial. O relay permanece reservado para a Fase 4.
+Backend, frontend e desktop contêm as Fases 1 e 2. O relay permanece reservado para a Fase 4.
 
 O aplicativo será instalável no Windows. O Ollama executará a IA no PC; o relay receberá eventos enquanto o PC estiver desligado. Monitoramento externo deverá detectar indisponibilidade do próprio VPS.
 
-Dados ativos ficarão fora de pastas sincronizadas. Credenciais serão mantidas no gerenciador de credenciais do sistema; backups poderão ir para o OneDrive. O modelo local será configurável e testado no hardware disponível, sem promessa prévia de desempenho ou precisão.
+O banco em uso fica em `%LOCALAPPDATA%\Monitor`, fora de pastas sincronizadas, porque o SQLite aberto dentro do OneDrive pode corromper. Backups diários, exportações e arquivos organizados vão para a **pasta de arquivos**, que você escolhe no instalador ou em Configurações, normalmente dentro do OneDrive. Senhas ficam no Gerenciador de Credenciais do Windows. O modelo local será configurável e testado no hardware disponível, sem promessa prévia de desempenho ou precisão.
 
 ## Desenvolvimento
 
@@ -55,7 +56,7 @@ npm ci
 npm run tauri -- dev
 ```
 
-O Tauri inicia o backend automaticamente. `MONITOR_PYTHON` permite indicar outro interpretador. Para dados fictícios, defina `$env:MONITOR_DEMO='1'` antes de abrir. Banco real em `%LOCALAPPDATA%\Monitor\monitor.db`; demo em `demo.db`, separado. Dados ativos não ficam no OneDrive.
+O Tauri inicia o backend automaticamente. `MONITOR_PYTHON` permite indicar outro interpretador. Para dados fictícios, defina `$env:MONITOR_DEMO='1'` antes de abrir. Banco real em `%LOCALAPPDATA%\Monitor\monitor.db`; demo em `demo.db`, separado.
 
 `npm run dev` inicia apenas uma prévia no navegador. Clique em **Explorar demonstração**; alterações nessa prévia ficam em memória e se perdem ao recarregar. A prévia não acessa o banco real.
 
@@ -68,9 +69,29 @@ npm run build
 
 O script gera o sidecar com PyInstaller, testa o executável e compila os instaladores NSIS/MSI em `dist/`. O workflow Windows desktop faz o mesmo no GitHub Actions. Os instaladores desta etapa não têm assinatura Authenticode nem atualizador ativo.
 
-Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. O instalador MSI usa a versão interna numérica `0.1.0.1`, correspondente à versão alpha do produto.
+Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. O instalador MSI usa a versão interna numérica `0.2.0.1`, correspondente à versão alpha do produto.
 
-Ollama é separado do instalador. Nas configurações, verifique a disponibilidade, ajuste o modelo e solicite seu download. O padrão do briefing é configurável e precisa ser validado no hardware. Nenhum chat ou análise real de e-mail está ativo nesta fase. Credenciais IMAP virão na Fase 2; backup e catálogo do OneDrive na Fase 5.
+Ollama é separado do instalador. Em Configurações, verifique a disponibilidade, ajuste o modelo e solicite o download. Sem Ollama, as regras continuam triando os e-mails e as mensagens aguardam na fila da IA.
+
+## Pasta de arquivos
+
+O instalador `.exe` (NSIS) tem uma página para escolher a pasta; a sugestão é `OneDrive\Monitor`. A escolha fica em `HKCU\Software\Monitor\FilesDir` e pode ser trocada em Configurações. O instalador MSI não tem essa página; nele a pasta é escolhida no aplicativo. Dentro da pasta o Monitor cria `Backups` (cópia diária do banco, 14 mais recentes), `Entrada` e `Exportações`. Desinstalar não apaga a pasta.
+
+A página usa um modelo NSIS próprio em `app/desktop/src-tauri/windows/`, copiado do `tauri-cli` 2.12.4 com uma linha a mais. Por isso a versão do `@tauri-apps/cli` está fixa; ao atualizá-la, copie o novo modelo e reaplique a linha marcada com `5b`.
+
+## E-mails
+
+Em Configurações, informe endereço, servidor IMAP, porta SSL (993), usuário e senha de cada conta e a frente a que pertence. O Monitor lê a caixa de entrada a cada 2 minutos com `EXAMINE` e `BODY.PEEK`: não marca como lida, não move e não apaga. Na primeira coleta traz os últimos 30 dias (até 200 mensagens).
+
+Regras determinísticas valem mais que a IA: pedido de orçamento ou prazo com data vira “Precisa de ação”; confiança abaixo de 0,6 ou data ambígua vai para “Revisar”; publicidade fica como informativo; remetente prioritário ou cliente com demanda aberta é no mínimo “Importante”. A IA só sugere: a demanda nasce quando você aceita a sugestão.
+
+Para medir a triagem com seus e-mails, rotule um CSV e rode:
+
+```powershell
+.venv/Scripts/python.exe scripts/eval_emails.py meus-emails.csv
+```
+
+O formato está em `docs/eval-exemplo.csv`.
 
 ## Contribuir
 

@@ -11,6 +11,8 @@ anyio==4.16.0
     #   fastapi
     #   httpx
     #   starlette
+apscheduler==3.11.3
+    # via monitor-backend (app/backend/pyproject.toml)
 certifi==2026.10.23
     # via
     #   httpcore
@@ -35,6 +37,18 @@ idna==3.20
     #   httpx
 iniconfig==2.3.1
     # via pytest
+jaraco-classes==3.4.0
+    # via keyring
+jaraco-context==6.1.2
+    # via keyring
+jaraco-functools==4.6.0
+    # via keyring
+keyring==25.7.0
+    # via monitor-backend (app/backend/pyproject.toml)
+more-itertools==11.2.1
+    # via
+    #   jaraco-classes
+    #   jaraco-functools
 opentelemetry-api==1.45.2
     # via fastapi
 packaging==26.3
@@ -63,7 +77,9 @@ pymupdf==1.28.2
 pytest==9.2.0
     # via monitor-backend (app/backend/pyproject.toml)
 pywin32-ctypes==0.2.3
-    # via pyinstaller
+    # via
+    #   keyring
+    #   pyinstaller
 setuptools==84.2.1
     # via pyinstaller
 sqlalchemy==2.1.8
@@ -87,5 +103,9 @@ typing-inspection==0.4.5
     # via
     #   fastapi
     #   pydantic
+tzdata==2026.6
+    # via tzlocal
+tzlocal==5.4.5
+    # via apscheduler
 uvicorn==0.54.0
     # via monitor-backend (app/backend/pyproject.toml)

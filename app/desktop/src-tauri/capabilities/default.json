@@ -8,6 +8,7 @@
     "autostart:allow-disable",
     "autostart:allow-is-enabled",
     "notification:default",
+    "dialog:allow-open",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "https://ollama.com/download/windows" }]
