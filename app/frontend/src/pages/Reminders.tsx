@@ -178,10 +178,10 @@ export function Reminders({ m }: { m: Monitor }) {
         os avisos continuam. Se o PC estiver desligado, os lembretes atrasados
         aparecem ao abrir novamente.
       </Callout>
-      {!m.connected && (
+      {m.preview && (
         <Callout>
-          Na demonstração, os lembretes ficam apenas nesta tela; nenhum aviso do
-          Windows é enviado.
+          Modo de demonstração: os dados são fictícios e nenhum aviso do Windows
+          é enviado.
         </Callout>
       )}
       <div className="grid-2">

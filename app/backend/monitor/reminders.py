@@ -5,6 +5,7 @@ import threading
 
 from sqlmodel import Session, select
 from .models import Demand, Email, EmailAnalysis, EmailAccount, Reminder, Notice, Setting, as_utc, now
+from .deadlines import find_deadline
 
 DEFAULTS = {'summary_enabled': True, 'summary_time': '07:30', 'timezone': 'America/Sao_Paulo',
             'notifications_enabled': True, 'notification_details': False, 'auto_email_reminders': False}
@@ -49,6 +50,18 @@ def withdraw_notices(db: Session, reminder_id: int):
         db.add(item)
 
 
+def link_demand(db: Session, demand: Demand):
+    if not demand.origin_ref:
+        return
+    item = db.exec(select(Reminder).where(Reminder.origin_key == demand.origin_ref, Reminder.demand_id == None)).first()
+    if item:
+        item.demand_id = demand.id
+        if demand.stage in ('ganho', 'perdido') and item.status in ('pendente', 'disparado'):
+            item.status = 'concluido'
+            withdraw_notices(db, item.id)
+        db.add(item)
+
+
 def generate(engine, instant: datetime | None = None, demo: bool = False):
     """Repeated calls/restarts are idempotent; all generated events commit together."""
     if not _lock.acquire(blocking=False):
@@ -72,8 +85,16 @@ def generate(engine, instant: datetime | None = None, demo: bool = False):
                     message = db.get(Email, analysis.email_id)
                     if not message or analysis.trecho_prazo not in f'{message.subject}\n{message.body_text}':
                         continue
+                    reference = as_utc(message.date).astimezone(zone).date() if message.date else local.date()
+                    confirmed = find_deadline(f'{message.subject}\n{message.body_text}', reference)
+                    if not confirmed or confirmed.ambiguous or confirmed.iso != analysis.prazo_iso:
+                        continue
+                    linked = db.exec(select(Demand).where(Demand.origin_ref == key)).first()
+                    if linked and linked.stage in ('ganho', 'perdido'):
+                        continue
                     due = datetime.combine(analysis.prazo_iso, time(9), tzinfo=zone).astimezone(timezone.utc)
-                    db.add(Reminder(text=f'Prazo do e-mail: {message.subject}'[:300], when=due, origin_key=key))
+                    db.add(Reminder(text=f'Prazo do e-mail: {message.subject}'[:300], when=due, origin_key=key,
+                                    demand_id=linked.id if linked else None))
                 db.flush()
             for item in db.exec(select(Reminder).where(Reminder.status == 'pendente', Reminder.when <= instant)).all():
                 demand = db.get(Demand, item.demand_id) if item.demand_id else None

@@ -6,6 +6,8 @@ Situação em 12/11/2026, versão `0.3.0-alpha.1` (Fases 1 a 3 e pasta de arquiv
 
 Testes com relógio controlado cobrem fusos, dias úteis, recuperação após reinício, confirmação de encaminhamento, privacidade, reagendamento, cancelamento, demandas encerradas e geração automática de lembretes de e-mail com ativação explícita. A interface permite criar e concluir um lembrete na demonstração. A integração exercita o scheduler de produção, a API e o SQLite com notificações nativas simuladas.
 
+Validação local: 28 testes backend e 3 testes de componentes passaram; TypeScript/Vite compilou. O teste visual passou nas nove telas e em três larguras. O teste integrado criou um lembrete atrasado, aguardou o worker real gerar o aviso e confirmou persistência após recarregar a interface. Nenhum toast real foi enviado nesse teste.
+
 Exibição real de toast, clique e indicador da bandeja ainda exigem validação no aplicativo instalado. O sucesso da chamada ao plugin significa encaminhamento, não prova de leitura pelo usuário. Consulte `AGENDA.md` para funcionamento e limites.
 
 ## Verificações anteriores (Fases 1 e 2)

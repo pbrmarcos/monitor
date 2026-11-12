@@ -77,6 +77,8 @@ Ollama é separado do instalador. Em Configurações, verifique a disponibilidad
 
 A seção **Lembretes** permite criar agendamentos gerais ou vinculados a demandas, concluir, cancelar e adiar. A central registra avisos e o resumo diário. Por padrão, o resumo é gerado às 7h30 em dias úteis no fuso America/Sao_Paulo e não depende do Ollama. Horário, fuso e privacidade dos avisos são configuráveis.
 
+![Agenda com dados de teste](docs/images/reminders.png)
+
 O aplicativo precisa estar aberto ou na bandeja. Com o computador desligado não há avisos; agendamentos atrasados são recuperados ao abrir novamente. A criação automática a partir de prazos explícitos nos e-mails começa desativada. Veja [como funciona a agenda](docs/AGENDA.md).
 
 ## Pasta de arquivos

@@ -107,6 +107,10 @@ def test_auto_email_reminders_opt_in_evidence_and_cancel_persistence(tmp_path):
             db.add(mail);db.flush()
             db.add(EmailAnalysis(email_id=mail.id,provisional=False,importancia='acao',confianca=.95,
                                  prazo_iso=THURSDAY.date()+timedelta(days=1),trecho_prazo='Envie até 13/11.'))
+            invented=Email(account_id=account.id,message_id='invented@test',subject='Olá',body_text='Apenas uma informação.')
+            db.add(invented);db.flush()
+            db.add(EmailAnalysis(email_id=invented.id,provisional=False,importancia='acao',confianca=.99,
+                                 prazo_iso=THURSDAY.date()+timedelta(days=1),trecho_prazo='Apenas uma informação.'))
             db.commit()
         reminders.generate(app.state.engine, THURSDAY)
         assert api.get('/reminders').json() == []
@@ -115,6 +119,8 @@ def test_auto_email_reminders_opt_in_evidence_and_cancel_persistence(tmp_path):
         reminders.generate(app.state.engine, THURSDAY)
         items=api.get('/reminders').json()
         assert len(items)==1 and 'T12:00:00' in items[0]['when']  # 9am local -> UTC
+        linked=api.post('/demands',json={'title':'Contrato','front_id':1,'origin_ref':'email:1'}).json()
+        assert api.get('/reminders').json()[0]['demand_id']==linked['id']
         api.post(f"/reminders/{items[0]['id']}/cancel")
         reminders.generate(app.state.engine, THURSDAY)
         assert len(api.get('/reminders').json()) == 1

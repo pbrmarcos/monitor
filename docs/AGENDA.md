@@ -12,6 +12,6 @@ Não desative a opção Iniciar com Windows se quiser acompanhamento automático
 
 Os detalhes do lembrete ficam ocultos nos avisos por padrão. As preferências permitem mostrar detalhes, desligar avisos nativos, ajustar o resumo e ativar a criação automática de lembretes com base nos e-mails. Ao desligar os avisos, os que ainda não foram enviados ficam silenciados; o histórico no Monitor continua acessível.
 
-Lembretes automáticos de e-mails usam 9h do prazo no fuso configurado e uma chave por mensagem. Cancelamentos não recriam o mesmo lembrete. Ajustes manuais não são sobrescritos por novas análises.
+Lembretes automáticos de e-mails usam 9h do prazo no fuso configurado e uma chave por mensagem. A data também precisa ser confirmada pelo leitor de prazos, além do trecho literal e da confiança informada pelo modelo. Cancelamentos não recriam o mesmo lembrete. Ajustes manuais não são sobrescritos por novas análises. Se a mensagem virar demanda, o lembrete automático passa a ficar vinculado; demandas já encerradas não geram novos lembretes automáticos.
 
 Validação: testes com relógio controlado para fusos, dias úteis, reinícios, reagendamento, cancelamento e entrega; teste de interface; integração com API, SQLite e scheduler reais. A exibição e o clique no Windows dependem de teste manual com aplicativo instalado.

@@ -234,6 +234,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
         return db.exec(select(Demand).order_by(Demand.id.desc())).all()
 
     def close_suggestion(db: Session, item: Demand):
+        reminders.link_demand(db, item)
         if item.origin_ref.startswith('email:'):
             pending = db.exec(select(Suggestion).where(Suggestion.email_id == int(item.origin_ref[6:]), Suggestion.status == 'pendente')).first()
             if pending:
@@ -470,6 +471,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
         db.add(demand)
         db.flush()
         db.add(Event(demand_id=demand.id, description='Demanda sugerida pela análise do e-mail e aceita pelo usuário.'))
+        reminders.link_demand(db, demand)
         item.status, item.demand_id = 'aceita', demand.id
         db.add(item)
         db.commit()
