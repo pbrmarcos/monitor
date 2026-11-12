@@ -1,6 +1,7 @@
 import { Download, RefreshCw, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { api, Preferences } from "../api";
 import { defaultPrefs, type Monitor } from "../store";
 import { applyTheme, presets, primaryOk, valid } from "../theme";
@@ -365,6 +366,21 @@ export function Updates({ version }: { version: string }) {
   const [message, setMessage] = useState("");
   const update = useRef<UpdateHandle | null>(null);
   const desktop = isTauri();
+  const [nativeVersion, setNativeVersion] = useState<string | null>(null);
+  useEffect(() => {
+    if (!desktop) return;
+    let active = true;
+    getVersion()
+      .then((value) => {
+        if (active) setNativeVersion(typeof value === "string" ? value : "");
+      })
+      .catch(() => {
+        if (active) setNativeVersion("");
+      });
+    return () => {
+      active = false;
+    };
+  }, [desktop]);
 
   async function check() {
     setState("checking");
@@ -410,16 +426,27 @@ export function Updates({ version }: { version: string }) {
     <div className="updates">
       <div className="split">
         <span>
-          <strong>Atualizações</strong>
+          <strong>Monitor</strong>
           <small>
-            Versão instalada: {version || "—"}
+            {desktop
+              ? `Versão instalada: ${nativeVersion || version || (nativeVersion === null ? "Carregando…" : "Não identificada")}`
+              : "Prévia no navegador · abra o aplicativo para consultar a versão instalada"}
             {state === "current" && " · você já tem a mais recente"}
             {state === "available" &&
               ` · versão ${update.current?.version} disponível`}
           </small>
         </span>
         <div className="button-row">
-          {state === "available" || state === "installing" ? (
+          <button
+            disabled={
+              !desktop || state === "checking" || state === "installing"
+            }
+            onClick={() => void check()}
+          >
+            <RefreshCw size={16} />
+            {state === "checking" ? "Verificando…" : "Verificar atualizações"}
+          </button>
+          {(state === "available" || state === "installing") && (
             <button
               className="primary"
               disabled={state === "installing"}
@@ -429,14 +456,6 @@ export function Updates({ version }: { version: string }) {
               {state === "installing"
                 ? progress || "Preparando…"
                 : "Atualizar agora"}
-            </button>
-          ) : (
-            <button
-              disabled={!desktop || state === "checking"}
-              onClick={() => void check()}
-            >
-              <RefreshCw size={16} />
-              {state === "checking" ? "Verificando…" : "Verificar atualizações"}
             </button>
           )}
         </div>

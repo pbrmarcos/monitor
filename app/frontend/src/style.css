@@ -1283,6 +1283,13 @@ input[type="color"] {
   display: grid;
   gap: var(--s2);
 }
+.updates .split {
+  flex-wrap: wrap;
+  gap: var(--s4);
+}
+.updates .button-row {
+  flex-wrap: wrap;
+}
 .updates .split > span > * {
   display: block;
 }

@@ -25,7 +25,7 @@ from . import ai, assistant, gcal, inbox, mail, prefs, social, storage, reminder
 from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Event, Setting, Suggestion, as_utc, now
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
-VERSION = '0.5.3-alpha.1'
+VERSION = '0.5.4-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 

@@ -7,6 +7,16 @@ import { useState } from "react";
 import { Chat, useChat } from "./pages/Other";
 import * as client from "./api";
 import type { Monitor } from "./store";
+import { Updates } from "./pages/Personalization";
+import * as core from "@tauri-apps/api/core";
+import * as app from "@tauri-apps/api/app";
+import * as updater from "@tauri-apps/plugin-updater";
+vi.mock("@tauri-apps/api/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tauri-apps/api/core")>()),
+  isTauri: vi.fn(() => false),
+}));
+vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn() }));
+vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
 afterEach(cleanup);
 HTMLDialogElement.prototype.showModal = function () {
   this.open = true;
@@ -15,6 +25,45 @@ HTMLDialogElement.prototype.close = function () {
   this.open = false;
 };
 describe("Monitor interface", () => {
+  it("shows the installed desktop version and checks updates only on request", async () => {
+    const desktop = vi.mocked(core.isTauri).mockReturnValue(true);
+    const version = vi.mocked(app.getVersion).mockResolvedValue("1.2.3-test");
+    const check = vi.mocked(updater.check).mockResolvedValue(null);
+    try {
+      const user = userEvent.setup();
+      render(<Updates version="backend-version" />);
+      expect(
+        await screen.findByText("Versão instalada: 1.2.3-test"),
+      ).toBeInTheDocument();
+      expect(check).not.toHaveBeenCalled();
+      await user.click(
+        screen.getByRole("button", { name: "Verificar atualizações" }),
+      );
+      expect(
+        await screen.findByText(/você já tem a mais recente/),
+      ).toBeInTheDocument();
+      expect(check).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getByRole("button", { name: "Verificar atualizações" }),
+      ).toBeEnabled();
+      const candidate = { version: "1.2.4-test", downloadAndInstall: vi.fn() };
+      check.mockResolvedValueOnce(candidate as unknown as updater.Update);
+      await user.click(
+        screen.getByRole("button", { name: "Verificar atualizações" }),
+      );
+      expect(
+        await screen.findByRole("button", { name: "Atualizar agora" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Verificar atualizações" }),
+      ).toBeEnabled();
+      expect(candidate.downloadAndInstall).not.toHaveBeenCalled();
+    } finally {
+      desktop.mockReturnValue(false);
+      version.mockReset();
+      check.mockReset();
+    }
+  });
   it("keeps general and work chats independent and sends their modes", async () => {
     const stream = vi
       .spyOn(client, "chatStream")

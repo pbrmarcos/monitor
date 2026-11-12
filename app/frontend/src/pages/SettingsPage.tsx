@@ -46,6 +46,11 @@ export function SettingsPage({ m }: { m: Monitor }) {
           </Callout>
         </div>
       )}
+      <Panel title="Versão e atualizações" className="wide">
+        <div className="panel-body">
+          <Updates version={m.version} />
+        </div>
+      </Panel>
       <FilesFolder m={m} />
       <Accounts m={m} />
       <LocalAi m={m} />
@@ -61,7 +66,7 @@ export function SettingsPage({ m }: { m: Monitor }) {
         </div>
       </Panel>
       <Personalization m={m} />
-      <Application version={m.version} />
+      <Application />
     </div>
   );
 }
@@ -529,10 +534,10 @@ function GoogleCalendar({ m }: { m: Monitor }) {
     >
       <div className="panel-body">
         <p>
-          Cada demanda aberta com prazo ou data de retorno vira um evento de
-          dia inteiro na sua agenda. O Monitor só grava os próprios eventos;
-          não lê nem altera os seus compromissos. Vão para o Google o título,
-          a frente, a etapa e a próxima ação.
+          Cada demanda aberta com prazo ou data de retorno vira um evento de dia
+          inteiro na sua agenda. O Monitor só grava os próprios eventos; não lê
+          nem altera os seus compromissos. Vão para o Google o título, a frente,
+          a etapa e a próxima ação.
         </p>
         {state?.error && (
           <Callout tone="error" role="alert">
@@ -604,9 +609,9 @@ function GoogleCalendar({ m }: { m: Monitor }) {
         ) : (
           <>
             <p>
-              O Google exige uma credencial sua, criada uma única vez: no
-              Google Cloud, ative a API Google Calendar e crie um ID do cliente
-              OAuth do tipo “App para computador”. O passo a passo está em
+              O Google exige uma credencial sua, criada uma única vez: no Google
+              Cloud, ative a API Google Calendar e crie um ID do cliente OAuth
+              do tipo “App para computador”. O passo a passo está em
               docs/AGENDA-GOOGLE.md.
             </p>
             <label className="field">
@@ -772,7 +777,7 @@ function LocalAi({ m }: { m: Monitor }) {
   );
 }
 
-function Application({ version }: { version: string }) {
+function Application() {
   const [autostart, setAutostart] = useState(false);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -811,8 +816,6 @@ function Application({ version }: { version: string }) {
           Fechar a janela mantém o Monitor na bandeja, coletando e-mails. Use
           “Sair” no menu da bandeja para encerrar.
         </p>
-        <hr />
-        <Updates version={version} />
         <hr />
         <h3>Próximas integrações</h3>
         {[

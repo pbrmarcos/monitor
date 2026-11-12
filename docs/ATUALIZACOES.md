@@ -1,6 +1,6 @@
 # Atualização pelo aplicativo
 
-Em **Configurações › Aplicativo › Verificar atualizações**, o Monitor consulta o GitHub, baixa o instalador da versão nova, confere a assinatura, fecha, instala e abre de novo. Dados, credenciais e a pasta de arquivos são mantidos.
+No início de **Configurações**, o painel **Versão e atualizações** mostra a versão instalada e o botão **Verificar atualizações**. Quando existe uma versão nova, aparece **Atualizar agora**: o Monitor baixa o instalador, confere a assinatura, fecha, instala e abre de novo. Dados, credenciais e a pasta de arquivos são mantidos.
 
 A versão `0.5.0-alpha.1` é a primeira com esse botão. Quem tem uma versão anterior precisa instalar esta uma última vez pelo instalador.
 
