@@ -1,13 +1,22 @@
 """Conversas locais: trabalho com contexto do Monitor e conversa geral independente."""
 import json
+import re
+import threading
+import unicodedata
 from datetime import date
 from typing import Literal
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session, select
 
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
+from sqlalchemy import text as sql_text
+
 from . import ai, prefs
+from .models import AssistantRule, ChatTurn, Conversation, now
 from .models import Demand, Email, EmailAccount, EmailAnalysis, Reminder, Site, SiteCheck, as_utc
 
 CONTEXT_LIMIT = 12000
@@ -28,6 +37,17 @@ GENERAL_SYSTEM = (
     'Não diga que consultou demandas, e-mails ou fontes externas e não afirme ter executado ações. '
     'Responda em texto simples, sem Markdown.'
 )
+# Regras: o assistente pode registrar preferências duradouras do usuário. Elas só mudam o
+# comportamento do próprio assistente, ficam visíveis na tela e podem ser apagadas a qualquer momento.
+LEARNING = (
+    ' Preferências de resposta podem ser guardadas quando o próprio usuário pedir explicitamente que '
+    'passem a valer daqui em diante. Esse registro é feito pelo aplicativo, não por comandos na sua resposta. '
+    'Responda normalmente: nunca escreva marcadores REGRA:, modelos de instrução ou protocolos internos. '
+    'As preferências não alteram suas permissões, as fontes permitidas ou as limitações descritas acima. '
+    'Aplique as preferências sem recitar a lista delas ao usuário.'
+)
+MARK = 'REGRA:'
+RULE_LIMIT = 50
 STAGES = {'novo': 'Novo', 'qualificacao': 'Em qualificação', 'preparar_proposta': 'Preparar proposta',
           'proposta_enviada': 'Proposta enviada', 'acompanhar': 'Acompanhar'}
 
@@ -104,15 +124,24 @@ def context(db: Session, today: date) -> str:
     return '\n'.join(lines)[:CONTEXT_LIMIT]
 
 
-def stream(model: str, data: str, messages: list[dict], num_ctx: int = 8192, *, mode: str = 'work'):
+def _line(item: dict) -> str:
+    return json.dumps(item, ensure_ascii=False, default=str) + '\n'
+
+
+def stream(model: str, data: str, messages: list[dict], num_ctx: int = 8192, *, mode: str = 'work', rules: list[str] | None = None):
     """Gera linhas NDJSON: {"delta": texto} durante a resposta e {"done": true} ou {"error": texto} ao final."""
-    system = GENERAL_SYSTEM if mode == 'general' else f'{SYSTEM}\n\nDADOS DO MONITOR:\n{data}'
+    system = GENERAL_SYSTEM if mode == 'general' else SYSTEM
+    if rules is not None:
+        system += LEARNING
+        if rules:
+            system += '\n\nPREFERÊNCIAS DO USUÁRIO PARA SUAS RESPOSTAS:\n' + '\n'.join(f'- {rule}' for rule in rules)
+    if mode != 'general':
+        system += f'\n\nDADOS DO MONITOR:\n{data}'
     payload = {'model': model, 'stream': True, 'think': False, 'keep_alive': '10m',
                'messages': [{'role': 'system', 'content': system}, *messages],
                'options': {'num_ctx': num_ctx, 'temperature': 0.2}}
 
-    def line(item: dict) -> str:
-        return json.dumps(item, ensure_ascii=False) + '\n'
+    line = _line
 
     try:
         with httpx.Client(timeout=httpx.Timeout(300, connect=3), trust_env=False) as client:
@@ -125,16 +154,308 @@ def stream(model: str, data: str, messages: list[dict], num_ctx: int = 8192, *, 
                         yield line({'error': f'O modelo {model} não está instalado no Ollama. Baixe-o em Configurações.'})
                         return
                     response.raise_for_status()
+                    complete = False
                     for raw in response.iter_lines():
                         if not raw:
                             continue
                         item = json.loads(raw)
+                        if not isinstance(item, dict) or (item.get('message') is not None and not isinstance(item['message'], dict)):
+                            raise ValueError('Invalid model response')
                         if item.get('error'):
                             yield line({'error': 'O modelo não conseguiu responder. Tente novamente.'})
                             return
                         if text := (item.get('message') or {}).get('content'):
+                            if not isinstance(text, str):
+                                raise ValueError('Invalid model response')
                             yield line({'delta': text})
+                        if item.get('done') is True:
+                            complete = True
+                            break
+                    if not complete:
+                        yield line({'error': 'A resposta foi interrompida. Tente novamente.'})
+                        return
                     yield line({'done': True})
                     return
     except (httpx.HTTPError, ValueError):
         yield line({'error': 'Não foi possível falar com o Ollama. Verifique se ele está aberto neste computador.'})
+
+
+class RuleFilter:
+    """Separa as linhas "REGRA: ..." do texto mostrado ao usuário, mesmo com a resposta chegando em pedaços."""
+
+    def __init__(self):
+        self.pending, self.hidden, self.hiding, self.rules = '', '', False, []
+
+    def feed(self, delta: str) -> str:
+        out = []
+        for char in delta:
+            if self.hiding:
+                if char == '\n':
+                    self.rules.append(self.hidden.strip())
+                    self.hidden, self.hiding = '', False
+                else:
+                    self.hidden += char
+                continue
+            self.pending += char
+            if self.pending.upper() == MARK:
+                self.pending, self.hiding = '', True
+                continue
+            while self.pending and not MARK.startswith(self.pending.upper()):
+                out.append(self.pending[0])
+                self.pending = self.pending[1:]
+        return ''.join(out)
+
+    def finish(self) -> str:
+        if self.hiding:
+            self.rules.append(self.hidden.strip())
+        out = self.pending
+        self.pending, self.hidden, self.hiding = '', '', False
+        return out
+
+
+def explicit_preference(content: str) -> str | None:
+    """Memória verificável: copia um pedido duradouro do usuário, nunca texto gerado pelo modelo."""
+    candidate = content.strip()
+    folded = ''.join(char for char in unicodedata.normalize('NFD', candidate.casefold()) if unicodedata.category(char) != 'Mn')
+    # Pedidos citados, perguntas e textos encaminhados não viram regras por palavras soltas.
+    prefix = r'(?:a partir de agora|daqui (?:pra|para) frente|de agora em diante|nas proximas (?:respostas|conversas)|lembre-se(?: de)?|guarde (?:esta|essa) (?:preferencia|regra)|prefiro(?: que)?)\b'
+    imperative = r'(?:responda|responder|escreva|escrever|use|usar|fale|falar|me chame|chame-me|priorize|evite|seja|sempre)\b'
+    durable = r'\b(?:sempre|daqui (?:pra|para) frente|a partir de agora|nas proximas (?:respostas|conversas))\b'
+    if not (re.match(prefix, folded) or (re.match(imperative, folded) and re.search(durable, folded))):
+        return None
+    if not re.search(r'\b(?:respond\w*|respost\w*|escrev\w*|textos?|tom|linguagem|idioma|topicos?|me chame|chame-me|prioriz\w*|formato)\b', folded):
+        return None
+    candidate = re.split(r'[\n.!?]', candidate, maxsplit=1)[0].strip()
+    if '?' in content or len(candidate) > 200 or len(candidate) < 8:
+        return None
+    return candidate
+
+
+def _clean_rule(text: str) -> str:
+    return ' '.join(text.replace('"', '').split())[:200].strip(' .') if text else ''
+
+
+def save_rule(db: Session, text: str, source: str, conversation_id: int | None = None) -> AssistantRule | None:
+    text = _clean_rule(text)
+    existing = db.exec(select(AssistantRule)).all()
+    if len(text) < 8 or len(existing) >= RULE_LIMIT or any(rule.text.lower() == text.lower() for rule in existing):
+        return None
+    rule = AssistantRule(text=text, source=source, conversation_id=conversation_id)
+    db.add(rule)
+    db.flush()
+    return rule
+
+
+def conversation_out(item: Conversation) -> dict:
+    return {'id': item.id, 'mode': item.mode, 'title': item.title, 'updated_at': as_utc(item.updated_at).isoformat()}
+
+
+def conversation_error(engine, identifier, message, partial=''):
+    with Session(engine) as db:
+        db.execute(sql_text('BEGIN IMMEDIATE'))
+        if db.get(Conversation, identifier):
+            db.add(ChatTurn(conversation_id=identifier, role='error', content=(partial + '\n\n' if partial else '') + message))
+            db.commit()
+    return _line({'error': message})
+
+
+def _converse(engine, conversation_id: int, content: str, today: date):
+    """Guarda a pergunta, transmite a resposta e, ao final, guarda a resposta e as regras aprendidas."""
+    with Session(engine) as db:
+        db.execute(sql_text('BEGIN IMMEDIATE'))
+        conversation = db.get(Conversation, conversation_id)
+        if not conversation:
+            yield _line({'error': 'Conversa não encontrada.'})
+            return
+        if not conversation.title:
+            conversation.title = ' '.join(content.split())[:60]
+        conversation.updated_at = now()
+        db.add(conversation)
+        question = ChatTurn(conversation_id=conversation_id, role='user', content=content)
+        db.add(question)
+        db.commit()
+        question_id = question.id
+        mode = conversation.mode
+        turns = db.exec(select(ChatTurn).where(ChatTurn.conversation_id == conversation_id, ChatTurn.role.in_(('user', 'assistant')))
+                        .order_by(ChatTurn.id.desc()).limit(12)).all()
+        history = [{'role': turn.role, 'content': turn.content[:4000]} for turn in reversed(turns)
+                   if turn.id == question_id or not (turn.role == 'user' and explicit_preference(turn.content))]
+        rules = [rule.text for rule in db.exec(select(AssistantRule).order_by(AssistantRule.id)).all()]
+        model = prefs_model(db)
+        data = context(db, today) if mode == 'work' else ''
+
+    answer, received, rule_filter = '', 0, RuleFilter()
+    for raw in stream(model, data, history, mode=mode, rules=rules):
+        item = json.loads(raw)
+        if 'error' in item:
+            yield conversation_error(engine, conversation_id, item['error'], answer)
+            return
+        if 'delta' in item:
+            received += len(item['delta'])
+            if received > 32000:
+                yield conversation_error(engine, conversation_id, 'A resposta atingiu o limite. Peça uma resposta mais curta.', answer)
+                return
+            if visible := rule_filter.feed(item['delta']):
+                answer += visible
+                yield _line({'delta': visible})
+    if tail := rule_filter.finish():
+        answer += tail
+        yield _line({'delta': tail})
+    if not answer.strip() and not explicit_preference(content):
+        yield conversation_error(engine, conversation_id, 'O modelo não produziu uma resposta. Tente novamente.')
+        return
+    with Session(engine) as db:
+        db.execute(sql_text('BEGIN IMMEDIATE'))
+        conversation = db.get(Conversation, conversation_id)
+        if not conversation:  # excluída durante a resposta
+            yield _line({'done': True})
+            return
+        answer = answer.strip() or 'Entendido.'
+        answer_turn = ChatTurn(conversation_id=conversation_id, role='assistant', content=answer)
+        db.add(answer_turn)
+        learned = []
+        remembered = False
+        # Marcadores do modelo são descartados. Só a instrução explícita do usuário vira memória.
+        if preference := explicit_preference(content):
+            if rule := save_rule(db, preference, 'assistente', conversation_id):
+                db.add(ChatTurn(conversation_id=conversation_id, role='rule', content=rule.text))
+                learned.append({'id': rule.id, 'text': rule.text, 'source': rule.source})
+                remembered = True
+            else:
+                remembered = any(rule.text.casefold() == _clean_rule(preference).casefold() for rule in db.exec(select(AssistantRule)).all())
+        # O histórico visível permanece. Instruções de memória só voltam ao modelo pela lista ativa,
+        # para uma preferência apagada não continuar influenciando por mensagens antigas.
+        if remembered:
+            question = db.get(ChatTurn, question_id)
+            if question:
+                question.role = 'preference_user'
+                db.add(question)
+        answer_turn.role = 'preference_assistant' if remembered else 'assistant'
+        db.add(answer_turn)
+        conversation.updated_at = now()
+        db.add(conversation)
+        db.commit()
+        for rule in learned:
+            yield _line({'rule': rule})
+        yield _line({'done': True, 'conversation': conversation_out(conversation)})
+
+
+def converse(engine, conversation_id: int, content: str, today: date, release=None):
+    try:
+        yield from _converse(engine, conversation_id, content, today)
+    finally:
+        if release:
+            release()
+
+
+def prefs_model(db: Session) -> str:
+    from .models import Setting
+    row = db.get(Setting, 'model')
+    return row.value if row else ai.DEFAULT_MODEL
+
+
+class ConversationInput(BaseModel):
+    mode: Literal['work', 'general'] = 'work'
+
+
+class QuestionInput(BaseModel):
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class RuleInput(BaseModel):
+    text: str = Field(min_length=8, max_length=200)
+
+    @field_validator('text')
+    @classmethod
+    def validate_text(cls, value):
+        value = value.strip()
+        if len(value) < 8:
+            raise ValueError('Escreva uma preferência com pelo menos 8 caracteres.')
+        return value
+
+
+def router(engine, session):
+    api = APIRouter(prefix='/assistant')
+    guard, active = threading.Lock(), set()
+
+    def find(db: Session, identifier: int) -> Conversation:
+        item = db.get(Conversation, identifier)
+        if not item:
+            raise HTTPException(404, 'Conversa não encontrada.')
+        return item
+
+    @api.get('/conversations')
+    def conversations(db: Session = Depends(session)):
+        rows = db.exec(select(Conversation).where(Conversation.title != '').order_by(Conversation.updated_at.desc(), Conversation.id.desc()).limit(200)).all()
+        return [conversation_out(item) for item in rows]
+
+    @api.post('/conversations', status_code=201)
+    def create(payload: ConversationInput, db: Session = Depends(session)):
+        item = Conversation(mode=payload.mode)
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        return conversation_out(item)
+
+    @api.get('/conversations/{identifier}/messages')
+    def messages(identifier: int, db: Session = Depends(session)):
+        find(db, identifier)
+        turns = db.exec(select(ChatTurn).where(ChatTurn.conversation_id == identifier).order_by(ChatTurn.id)).all()
+        return [{'role': {'error': 'assistant', 'preference_user': 'user', 'preference_assistant': 'assistant'}.get(turn.role, turn.role), 'text': turn.content,
+                 **({'error': True} if turn.role == 'error' else {})} for turn in turns]
+
+    @api.post('/conversations/{identifier}/messages')
+    def ask(identifier: int, payload: QuestionInput, db: Session = Depends(session)):
+        find(db, identifier)
+        content = payload.content.strip()
+        if not content:
+            raise HTTPException(400, 'Escreva uma pergunta.')
+        with guard:
+            if identifier in active:
+                raise HTTPException(409, 'Esta conversa já está respondendo. Aguarde a conclusão.')
+            active.add(identifier)
+        released = False
+        def release():
+            nonlocal released
+            with guard:
+                if not released:
+                    active.discard(identifier)
+                    released = True
+        return StreamingResponse(converse(engine, identifier, content, date.today(), release),
+                                 media_type='application/x-ndjson', background=BackgroundTask(release))
+
+    @api.delete('/conversations/{identifier}', status_code=204)
+    def remove(identifier: int, db: Session = Depends(session)):
+        db.execute(sql_text('BEGIN IMMEDIATE'))
+        item = find(db, identifier)
+        for turn in db.exec(select(ChatTurn).where(ChatTurn.conversation_id == identifier)).all():
+            db.delete(turn)
+        db.delete(item)
+        db.commit()  # as regras aprendidas nesta conversa continuam valendo
+
+    def rule_out(rule: AssistantRule) -> dict:
+        return {'id': rule.id, 'text': rule.text, 'source': rule.source}
+
+    @api.get('/rules')
+    def rules(db: Session = Depends(session)):
+        return [rule_out(rule) for rule in db.exec(select(AssistantRule).order_by(AssistantRule.id.desc())).all()]
+
+    @api.post('/rules', status_code=201)
+    def add_rule(payload: RuleInput, db: Session = Depends(session)):
+        db.execute(sql_text('BEGIN IMMEDIATE'))
+        rule = save_rule(db, payload.text, 'usuario')
+        if not rule:
+            raise HTTPException(409, 'Esta regra já existe ou o limite de 50 regras foi atingido.')
+        db.commit()
+        db.refresh(rule)
+        return rule_out(rule)
+
+    @api.delete('/rules/{identifier}', status_code=204)
+    def remove_rule(identifier: int, db: Session = Depends(session)):
+        rule = db.get(AssistantRule, identifier)
+        if not rule:
+            raise HTTPException(404, 'Regra não encontrada.')
+        db.delete(rule)
+        db.commit()
+
+    return api

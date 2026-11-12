@@ -10,10 +10,12 @@ Situação em 12/11/2026. Detalhes de cada verificação em `VALIDATION.md`; reg
 | 3 | Lembretes: agendamento persistente, notificações do Windows, resumo diário às 7h30 | Agenda, central, resumo e ponte nativa implementados; testes e compilação NSIS/MSI aprovados. Exibição e clique dos avisos no aplicativo instalado pendentes de validação manual |
 | 4 | Sites e relay: formulários, deduplicação, verificações, incidentes, monitor externo | Primeira entrega: checagens locais, SSL, incidentes, relay durável, revisão de contatos e deduplicação conservadora. Pendentes implantação real, teste sintético semanal, métricas do host e monitor externo independente |
 | 5 | Arquivos: catálogo da pasta, extração de texto, busca, classificação | Pendente (pasta e backup já entregues em 2b) |
-| 6 | Assistente: consultas ao banco, fontes citadas, ações com confirmação | Primeira entrega: chat com o modelo local sobre demandas, e-mails, lembretes e sites, com fontes citadas; testado com o Ollama real. Ações com confirmação e busca em arquivos pendentes |
+| 6 | Assistente: consultas ao banco, fontes citadas, ações com confirmação | Conversas gerais e de trabalho salvas, reabertura, exclusão e preferências explícitas de resposta, com teste no Qwen real. Citações de demandas abrem o registro. Ações comerciais e busca em arquivos pendentes (`ASSISTENTE.md`) |
 | 6b | Google Agenda: demandas com data como eventos na conta do usuário | Implementado e testado com Google simulado. Falta conectar a conta real com a credencial OAuth do usuário (`AGENDA-GOOGLE.md`) |
 | 7 | Redes sociais: provedores oficiais, snapshots, mensagens, Discord opcional | Primeira entrega: perfis do Instagram pela API oficial, coleta horária e cartões com totais e números da semana; testado com Instagram simulado (`REDES-SOCIAIS.md`). Pendentes conexão real, mensagens e WhatsApp (depende de parceiro da Meta) |
-| — | Personalização e atualização: perfil, nomes das frentes, cores, atualização pelo aplicativo | Perfil, frentes e cores implementados e testados. Atualização configurada, mas ainda não compilada nem publicada (`ATUALIZACOES.md`) |
+| — | Personalização e atualização: perfil, nomes das frentes, cores, atualização pelo aplicativo | Perfil, frentes, favicons e cores entregues. Atualizador compilado, pacotes assinados e manifesto publicado. Instalação pelo botão ainda requer validação manual (`ATUALIZACOES.md`) |
+
+Alternativa para redes sociais: [estudo de navegador em segundo plano](ESTUDO-REDES-NAVEGADOR.md) e prova local de perfil dedicado com sessão sintética persistente. Coleta real de Instagram por navegador ainda não implementada.
 
 ## Antes de considerar uma fase concluída
 

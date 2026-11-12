@@ -141,11 +141,12 @@ await page
   .getByRole("button", { name: "Enviar mensagem", exact: true })
   .click();
 await compactMessages();
+await shot("assistente-conversa");
 await page
-  .getByRole("button", { name: "Limpar conversa", exact: true })
+  .getByRole("button", { name: "Nova conversa", exact: true })
   .click();
 if (await page.locator(".chat-log .message").count())
-  throw new Error("Conversa geral não foi limpa");
+  throw new Error("Nova conversa não começou vazia");
 await go("Visão geral");
 await page.setViewportSize({ width: 820, height: 1000 });
 await compactMessages();

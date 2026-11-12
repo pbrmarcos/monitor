@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from monitor import gcal
 from monitor.main import create_app
+from monitor.secrets_store import MemoryStore
 
 HEADERS = {'Authorization': 'Bearer session'}
 CLIENT = {'client_id': 'cliente-123.apps.googleusercontent.com', 'client_secret': 'segredo-do-cliente'}
@@ -93,7 +94,7 @@ def connect(api):
 
 
 def test_demands_with_dates_become_calendar_events(tmp_path, google):
-    with TestClient(create_app(tmp_path, 'session', False), headers=HEADERS) as api:
+    with TestClient(create_app(tmp_path, 'session', False, secret_store=MemoryStore()), headers=HEADERS) as api:
         vault = api.app.state.vault
         assert api.post('/calendar/sync').status_code == 409
         status = connect(api)
@@ -137,7 +138,7 @@ def test_demands_with_dates_become_calendar_events(tmp_path, google):
 
 
 def test_revoked_access_asks_to_reconnect(tmp_path, google):
-    with TestClient(create_app(tmp_path, 'session', False), headers=HEADERS) as api:
+    with TestClient(create_app(tmp_path, 'session', False, secret_store=MemoryStore()), headers=HEADERS) as api:
         connect(api)
         gcal._access.clear()
         google.revoked = True

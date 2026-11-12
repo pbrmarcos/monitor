@@ -25,7 +25,7 @@ from . import ai, assistant, gcal, inbox, mail, prefs, social, storage, reminder
 from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Event, Setting, Suggestion, as_utc, now
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
-VERSION = '0.5.4-alpha.1'
+VERSION = '0.6.0-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
@@ -99,7 +99,7 @@ def migrate(engine):
         reminder_columns = {row[1] for row in connection.execute(text('PRAGMA table_info(reminder)'))}
         if 'revision' not in reminder_columns:
             connection.execute(text('ALTER TABLE reminder ADD COLUMN revision INTEGER NOT NULL DEFAULT 0'))
-        for version in (1, 2, 3, 4, 5, 6):  # 5: Google Agenda; 6: perfis sociais (create_all)
+        for version in (1, 2, 3, 4, 5, 6, 7):  # 7: conversas, mensagens e preferências do assistente
             connection.execute(text('INSERT OR IGNORE INTO schema_migrations VALUES (:v)'), {'v': version})
 
 
@@ -227,6 +227,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     app.include_router(sites.router(engine, session, demo))
     app.include_router(forms.router(engine, session, vault, demo))
     app.include_router(social.router(engine, session, vault, demo))
+    app.include_router(assistant.router(engine, session))
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, error):

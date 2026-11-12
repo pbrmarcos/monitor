@@ -226,6 +226,31 @@ class SocialMedia(SQLModel, table=True):
     comments: int = 0
 
 
+class Conversation(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    mode: str = 'work'  # work: com os dados do Monitor; general: conversa livre
+    title: str = ''
+    created_at: datetime = Field(default_factory=now)
+    updated_at: datetime = Field(default_factory=now, index=True)
+
+
+class ChatTurn(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    conversation_id: int = Field(index=True)
+    role: str  # user/assistant, preference_user/preference_assistant, rule ou error
+    content: str
+    created_at: datetime = Field(default_factory=now)
+
+
+class AssistantRule(SQLModel, table=True):
+    """Preferência duradoura que o assistente segue em todas as conversas."""
+    id: int | None = Field(default=None, primary_key=True)
+    text: str
+    source: str = 'assistente'  # assistente | usuario
+    conversation_id: int | None = None
+    created_at: datetime = Field(default_factory=now)
+
+
 class CalendarLink(SQLModel, table=True):
     """Evento do Google Agenda que espelha uma demanda."""
     demand_id: int = Field(primary_key=True)

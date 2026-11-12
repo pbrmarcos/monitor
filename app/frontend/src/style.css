@@ -1404,9 +1404,144 @@ input[type="color"] {
 .composer textarea:focus-visible {
   outline: 0;
 }
-.panel.full-chat {
-  height: calc(100vh - 260px);
-  min-height: 480px;
+.assistant > header .link {
+  font-size: var(--text-small);
+}
+.message.message-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  justify-self: start;
+  border-color: var(--cyan);
+  color: var(--muted);
+}
+.message.message-rule svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--navy);
+}
+.message.message-rule strong {
+  color: var(--navy);
+  font-weight: 600;
+}
+.cite {
+  display: inline;
+  min-height: 0;
+  padding: 0 var(--s1);
+  border: 0;
+  border-radius: var(--radius-chip);
+  background: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 400;
+  vertical-align: baseline;
+}
+.cite:hover {
+  background: var(--divider);
+}
+.assistant-page {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;
+}
+.panel.full-chat,
+.panel.conversations {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 220px);
+  min-height: 520px;
+}
+.panel.conversations {
+  overflow-y: auto;
+}
+.new-chat {
+  display: grid;
+  gap: var(--s2);
+  padding: 0 var(--s5) var(--s4);
+}
+.conversation-list {
+  display: grid;
+  gap: var(--s1);
+  padding: 0 var(--s3) var(--s4);
+}
+.conversation {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  border-radius: var(--radius-control);
+}
+.conversation.current {
+  background: var(--subtle);
+  box-shadow: inset 3px 0 var(--navy);
+}
+.conversation-open {
+  flex: 1;
+  justify-content: flex-start;
+  min-width: 0;
+  min-height: 52px;
+  padding: var(--s2);
+  border: 0;
+  background: none;
+  font-weight: 400;
+  text-align: left;
+}
+.conversation-open > span {
+  min-width: 0;
+}
+.conversation-open strong {
+  display: block;
+  overflow: hidden;
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+.conversation-open small,
+.rule small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.conversation.confirm {
+  flex-wrap: wrap;
+  padding: var(--s2);
+  font-size: var(--text-small);
+}
+.conversation.confirm > span {
+  flex: 1 0 100%;
+}
+.hint {
+  padding: 0 var(--s2);
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.rules {
+  display: grid;
+  gap: var(--s3);
+  margin-top: auto;
+  padding: var(--s4) var(--s5) var(--s5);
+  border-top: 1px solid var(--divider);
+}
+.rules .hint {
+  padding: 0;
+}
+.rule {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  font-size: var(--text-small);
+}
+.rule > span {
+  flex: 1;
+  min-width: 0;
+}
+.rule-form {
+  display: flex;
+  gap: var(--s2);
+}
+.rule-form input {
+  min-height: var(--control-sm);
+  font-size: var(--text-small);
 }
 .full-chat .prompts {
   grid-template-columns: 1fr 1fr;
@@ -1573,10 +1708,16 @@ dialog.modal::backdrop,
   }
 }
 @media (max-width: 1100px) {
+  .assistant-page .conversations {
+    height: auto;
+    min-height: 0;
+    max-height: 420px;
+  }
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .grid-2,
+  .assistant-page,
   .settings,
   .personal,
   .steps {

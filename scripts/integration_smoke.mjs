@@ -73,7 +73,7 @@ try {
       .fill("Quais demandas estão abertas?");
     await page.getByRole("button", { name: "Enviar mensagem" }).click();
     await page
-      .getByRole("button", { name: "Limpar conversa" })
+      .getByRole("button", { name: "Nova conversa", exact: true })
       .and(page.locator(":enabled"))
       .waitFor({ timeout: 300000 });
     const answer = await page.locator(".message.message-assistant").last();
@@ -83,6 +83,37 @@ try {
     if (!/integração/i.test(text))
       throw new Error(`Resposta sem a demanda criada: ${text}`);
     console.log(`Chat com o modelo local: ${text.replace(/\s+/g, " ")}`);
+    // A conversa fica salva, reabre após recarregar e pode ser excluída; regras manuais persistem.
+    await page.reload();
+    await page.getByText("Backend local conectado").waitFor();
+    await page
+      .locator("nav")
+      .getByRole("button", { name: "Assistente", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: /Quais demandas estão abertas\?.*Trabalho/ })
+      .click();
+    await page.locator(".message.message-assistant").first().waitFor();
+    await page.getByLabel("Nova regra").fill("Responder sempre em tópicos curtos");
+    await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "Apagar regra: Responder sempre em tópicos curtos",
+      })
+      .waitFor();
+    await page
+      .getByRole("button", {
+        name: "Excluir conversa: Quais demandas estão abertas?",
+      })
+      .click();
+    await page.getByRole("button", { name: "Excluir", exact: true }).click();
+    await page.getByText("Conversa excluída.", { exact: true }).waitFor();
+    if (await page.locator(".conversation-open").count())
+      throw new Error("A conversa excluída continua na lista");
+    await page
+      .locator("nav")
+      .getByRole("button", { name: "Visão geral", exact: true })
+      .click();
   } else console.log("Chat não testado nesta execução");
   // Personalização: nome da frente, perfil e cores persistem após recarregar.
   await page

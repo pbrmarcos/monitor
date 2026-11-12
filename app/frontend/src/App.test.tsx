@@ -3,8 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import App from "./App";
 import { DemandModal } from "./DemandModal";
-import { useState } from "react";
-import { Chat, useChat } from "./pages/Other";
+import { AssistantPage, useAssistant } from "./pages/Assistant";
 import * as client from "./api";
 import type { Monitor } from "./store";
 import { Updates } from "./pages/Personalization";
@@ -64,66 +63,111 @@ describe("Monitor interface", () => {
       check.mockReset();
     }
   });
-  it("keeps general and work chats independent and sends their modes", async () => {
+  it("saves separate conversations, learns a rule and deletes a conversation", async () => {
+    let next = 1;
+    const calls = vi
+      .spyOn(client, "api")
+      .mockImplementation(async (path: string, method = "GET", body?: unknown) => {
+        if (path === "/assistant/conversations" && method === "POST")
+          return {
+            id: next++,
+            mode: (body as { mode: string }).mode,
+            title: "",
+            updated_at: new Date().toISOString(),
+          } as never;
+        if (method === "GET") return [] as never;
+        return undefined as never;
+      });
     const stream = vi
-      .spyOn(client, "chatStream")
-      .mockImplementation(async (_messages, delta) => {
-        delta("Resposta local.");
+      .spyOn(client, "conversationStream")
+      .mockImplementation(async (id, content, on) => {
+        on.delta("Resposta local.");
+        if (content.includes("sempre"))
+          on.rule({ id: 9, text: "Responder em tópicos", source: "assistente" });
+        on.done({
+          id,
+          mode: id === 1 ? "general" : "work",
+          title: content,
+          updated_at: new Date().toISOString(),
+        });
       });
     const m = {
       connected: true,
       settings: { model: "local" },
       ollama: { available: true, models: ["local"] },
+      demands: [],
       setPage: vi.fn(),
+      setNotice: vi.fn(),
+      setDetail: vi.fn(),
+      fail: vi.fn(),
     } as unknown as Monitor;
-    function Conversations() {
-      const work = useChat(m, "work"),
-        general = useChat(m, "general");
-      const [free, setFree] = useState(false);
-      return (
-        <>
-          <button onClick={() => setFree(false)}>Trabalho</button>
-          <button onClick={() => setFree(true)}>Conversa geral</button>
-          <Chat chat={free ? general : work} />
-        </>
-      );
+    function Page() {
+      return <AssistantPage a={useAssistant(m)} />;
     }
     try {
       const user = userEvent.setup();
-      render(<Conversations />);
-      await user.type(
-        screen.getByLabelText("Mensagem para o assistente"),
-        "Priorizar proposta",
-      );
-      await user.click(screen.getByRole("button", { name: "Enviar mensagem" }));
+      render(<Page />);
+      const field = () => screen.getByLabelText("Mensagem para o assistente");
+      const send = () =>
+        user.click(screen.getByRole("button", { name: "Enviar mensagem" }));
+      await user.type(field(), "Explique as estrelas");
+      await send();
       expect(stream).toHaveBeenNthCalledWith(
         1,
-        [{ role: "user", content: "Priorizar proposta" }],
-        expect.any(Function),
-        "work",
-      );
-      await user.click(screen.getByRole("button", { name: "Conversa geral" }));
-      expect(screen.queryByText("Priorizar proposta")).not.toBeInTheDocument();
-      await user.type(
-        screen.getByLabelText("Mensagem para o assistente"),
+        1,
         "Explique as estrelas",
+        expect.anything(),
       );
-      await user.click(screen.getByRole("button", { name: "Enviar mensagem" }));
+      const saved = await screen.findByRole("button", {
+        name: /Explique as estrelas.*Geral/,
+      });
+      expect(screen.getByText("Resposta local.")).toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole("button", { name: "Sobre meu trabalho" }),
+      );
+      expect(screen.queryByText("Resposta local.")).not.toBeInTheDocument();
+      await user.type(field(), "Responda sempre em tópicos");
+      await send();
       expect(stream).toHaveBeenNthCalledWith(
         2,
-        [{ role: "user", content: "Explique as estrelas" }],
-        expect.any(Function),
-        "general",
+        2,
+        "Responda sempre em tópicos",
+        expect.anything(),
       );
-      await user.click(screen.getByRole("button", { name: "Limpar conversa" }));
+      expect(await screen.findByText("Regra aprendida.")).toBeInTheDocument();
       expect(
-        screen.queryByText("Explique as estrelas"),
+        screen.getByRole("button", {
+          name: "Apagar regra: Responder em tópicos",
+        }),
+      ).toBeInTheDocument();
+
+      await user.click(saved);
+      expect(
+        screen.getByRole("heading", { name: "Conversa geral" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Regra aprendida.")).not.toBeInTheDocument();
+      await user.click(
+        screen.getByRole("button", {
+          name: "Excluir conversa: Explique as estrelas",
+        }),
+      );
+      await user.click(screen.getByRole("button", { name: "Excluir" }));
+      expect(calls).toHaveBeenCalledWith("/assistant/conversations/1", "DELETE");
+      expect(
+        screen.queryByRole("button", { name: /Explique as estrelas.*Geral/ }),
       ).not.toBeInTheDocument();
-      await user.click(screen.getByRole("button", { name: "Trabalho" }));
-      expect(screen.getByText("Priorizar proposta")).toBeInTheDocument();
-      expect(screen.getByText("Resposta local.")).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Sobre o que vamos conversar?" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", {
+          name: /Responda sempre em tópicos.*Trabalho/,
+        }),
+      ).toBeInTheDocument();
     } finally {
       stream.mockRestore();
+      calls.mockRestore();
     }
   });
   it("navigates through all screens and filters demo demands", async () => {

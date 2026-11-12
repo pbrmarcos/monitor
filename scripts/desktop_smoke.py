@@ -34,7 +34,18 @@ with tempfile.TemporaryDirectory() as folder:
             demand = json.load(response)
             assert demand['id'] == 1
         assert (Path(folder)/'Monitor/monitor.db').exists()
-        print('Packaged backend: handshake, auth, create and local database OK')
+        def assistant_call(path, method='GET', payload=None):
+            body = json.dumps(payload).encode() if payload is not None else None
+            with urllib.request.urlopen(urllib.request.Request(url + path, headers=headers, data=body, method=method), timeout=5) as response:
+                raw = response.read()
+                return json.loads(raw) if raw else None
+        conversation = assistant_call('/assistant/conversations', 'POST', {'mode': 'general'})
+        assert assistant_call(f"/assistant/conversations/{conversation['id']}/messages") == []
+        rule = assistant_call('/assistant/rules', 'POST', {'text': 'Responder sempre com clareza'})
+        assert any(item['id'] == rule['id'] for item in assistant_call('/assistant/rules'))
+        assistant_call(f"/assistant/conversations/{conversation['id']}", 'DELETE')
+        assistant_call(f"/assistant/rules/{rule['id']}", 'DELETE')
+        print('Packaged backend: handshake, auth, demands, conversations, preferences and local database OK')
     finally:
         child.stdin.close()
         try:

@@ -1,5 +1,7 @@
 # Redes sociais
 
+A alternativa com navegador em segundo plano foi avaliada em [Estudo de coleta pelo Chrome](ESTUDO-REDES-NAVEGADOR.md). Existe uma prova local de sessão persistente; a coleta real de Instagram por navegador ainda não foi implementada.
+
 O Monitor lê os números dos seus perfis do Instagram pela API oficial da Meta, uma vez por hora, sem navegador e sem publicar nada. WhatsApp e mensagens diretas ainda não estão disponíveis.
 
 ## O que cada cartão mostra

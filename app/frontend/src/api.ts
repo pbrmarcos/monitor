@@ -194,18 +194,34 @@ export type Calendar = {
   error: string;
   events: number;
 };
-/** Conversa com o modelo local; `onDelta` recebe cada trecho da resposta. */
-export async function chatStream(
-  messages: { role: string; content: string }[],
-  onDelta: (text: string) => void,
-  mode: "work" | "general" = "work",
+export type Conversation = {
+  id: number;
+  mode: "work" | "general";
+  title: string;
+  updated_at: string;
+};
+export type AssistantRule = { id: number; text: string; source: string };
+/** Envia uma pergunta a uma conversa salva e acompanha a resposta em partes. */
+export async function conversationStream(
+  id: number,
+  content: string,
+  on: {
+    delta: (text: string) => void;
+    rule: (rule: AssistantRule) => void;
+    done: (conversation?: Conversation) => void;
+  },
 ) {
-  const response = await request("/assistant/chat", "POST", { messages, mode });
+  const response = await request(
+    `/assistant/conversations/${id}/messages`,
+    "POST",
+    { content },
+  );
   if (!response.ok || !response.body)
     throw new Error("Não foi possível enviar a pergunta.");
   const reader = response.body.getReader(),
     decoder = new TextDecoder();
-  let buffer = "";
+  let buffer = "",
+    finished = false;
   while (true) {
     const { value, done } = await reader.read();
     buffer += decoder.decode(value, { stream: !done });
@@ -215,10 +231,19 @@ export async function chatStream(
       if (!line.trim()) continue;
       const item = JSON.parse(line);
       if (item.error) throw new Error(item.error);
-      if (item.delta) onDelta(item.delta);
+      if (item.delta) on.delta(item.delta);
+      if (item.rule) on.rule(item.rule);
+      if (item.done) {
+        finished = true;
+        on.done(item.conversation);
+      }
     }
     if (done) break;
   }
+  if (!finished)
+    throw new Error(
+      "A resposta foi interrompida. Reabra a conversa e tente novamente.",
+    );
 }
 export async function pullModel(
   model: string,

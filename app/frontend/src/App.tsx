@@ -19,7 +19,13 @@ import { api, stages } from "./api";
 import { DemandModal, DemandSheet } from "./DemandModal";
 import { Demands } from "./pages/Demands";
 import { Emails } from "./pages/Emails";
-import { AssistantHeader, Chat, Files, useChat } from "./pages/Other";
+import {
+  AssistantHeader,
+  AssistantPage,
+  Chat,
+  useAssistant,
+} from "./pages/Assistant";
+import { Files } from "./pages/Other";
 import { Social } from "./pages/Social";
 import { Sites } from "./pages/Sites";
 import { Overview } from "./pages/Overview";
@@ -98,8 +104,7 @@ const withSearch: Page[] = ["Visão geral", "Demandas", "Arquivos"];
 export default function App() {
   const m = useMonitor();
   const [history, setHistory] = useState<HistoryEvent[]>([]);
-  const workChat = useChat(m, "work");
-  const generalChat = useChat(m, "general");
+  const assistant = useAssistant(m);
   const { detail, connected } = m;
   useEffect(() => {
     setHistory([]);
@@ -287,11 +292,7 @@ export default function App() {
               {m.page === "Sites" && <Sites m={m} />}
               {m.page === "Redes sociais" && <Social m={m} />}
               {m.page === "Arquivos" && <Files m={m} />}
-              {m.page === "Assistente" && (
-                <section className="panel full-chat">
-                  <Chat chat={generalChat} />
-                </section>
-              )}
+              {m.page === "Assistente" && <AssistantPage a={assistant} />}
               {m.page === "Configurações" && <SettingsPage m={m} />}
             </>
           )}
@@ -299,8 +300,8 @@ export default function App() {
       </main>
       {overview && (
         <aside className="assistant" aria-label="Assistente">
-          <AssistantHeader />
-          <Chat chat={workChat} />
+          <AssistantHeader a={assistant} />
+          <Chat chat={assistant.work} compact />
         </aside>
       )}
       {m.notice && (
