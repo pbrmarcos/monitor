@@ -1,6 +1,14 @@
 # Validação
 
-Situação em 12/11/2026, versão `0.5.3-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 12/11/2026, versão `0.5.4-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Versão e atualizações em destaque (0.5.4-alpha.1)
+
+O painel foi movido para o início das Configurações. O novo teste simula a versão nativa diferente da versão do backend e verifica a preferência pela versão do aplicativo, a consulta apenas após clique, o estado atualizado e a detecção de nova versão sem instalar automaticamente. O botão de consulta permanece disponível após encontrar uma atualização.
+
+Os cinco testes de componentes, TypeScript/Vite e a navegação visual em três larguras passaram. As chamadas nativas são simuladas nos testes; a execução do instalador pelo botão continua pendente de validação manual no aplicativo instalado.
+
+O [build Windows de 2032b18](https://github.com/pbrmarcos/monitor/actions/runs/43310916978) passou com os testes, sidecar, scheduler, frontend, Rust, instaladores e assinaturas do atualizador. Os pacotes 0.5.4 são os artefatos dessa execução.
 
 ## Conversa geral e assistente de trabalho (0.5.3-alpha.1)
 
