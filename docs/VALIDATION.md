@@ -1,6 +1,20 @@
 # Validação
 
-Situação em 12/11/2026, versão `0.5.4-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 12/11/2026, versão `0.6.0-alpha.2`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Conversas salvas e memórias verificáveis (0.6.0-alpha.2)
+
+62 testes de backend e 5 de componentes passaram, com TypeScript/Vite, navegação visual em três larguras e integração real de API/SQLite. Os casos novos cobrem reinício, separação por modo, exclusão durante geração, bloqueio de duas respostas simultâneas na mesma conversa, persistência de erros e recusa de regras emitidas pelo modelo em perguntas comuns. Uma preferência apagada não volta ao contexto pela antiga mensagem de aprendizado.
+
+Os identificadores das conversas não são reutilizados após exclusão: uma resposta ainda em andamento não pode cair numa conversa nova. A migração das tabelas do protótipo preserva os registros existentes; o teste parte de um banco antigo, migra, exclui e cria outra conversa para conferir essa garantia.
+
+O Qwen local foi exercitado com perguntas comuns e um pedido explícito de preferência. A pergunta sobre a capital da Austrália não criou memória; o pedido de duas frases foi salvo uma única vez; a resposta seguinte teve duas frases, sem marcadores internos. Isso é validação pontual de funcionamento, não estimativa de precisão nem treinamento dos pesos do modelo.
+
+A integração pelo navegador criou uma conversa de trabalho com o modelo real, reabriu após recarregar, guardou uma regra manual e excluiu a conversa. O teste não usou contas reais de e-mail, Google ou Instagram.
+
+O script `browser_profile_probe.mjs` passou com Chrome real em modo sem janela, perfil temporário e cookie sintético persistente após reinício. Nenhuma sessão pessoal ou conta real foi acessada. O [estudo do navegador](ESTUDO-REDES-NAVEGADOR.md) diferencia essa prova da coleta efetiva de Instagram, ainda não implementada.
+
+O [build Windows de 1ab4c0c](https://github.com/pbrmarcos/monitor/actions/runs/43322313518) passou com os testes, sidecar empacotado, scheduler, frontend, Rust, instaladores e assinaturas do atualizador. O teste do sidecar também cria, consulta e exclui conversas e preferências. Os pacotes 0.6.0-alpha.2 são os artefatos dessa execução. A instalação efetiva pelo botão continua pendente de validação manual no aplicativo instalado.
 
 ## Versão e atualizações em destaque (0.5.4-alpha.1)
 
