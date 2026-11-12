@@ -91,7 +91,7 @@ Os quatro endereços informados estão disponíveis como sugestões, sem cadastr
 
 O **relay** recebe formulários no VPS, guarda os contatos em SQLite e entrega ao PC com confirmação após gravação local. Contatos aguardam revisão antes de virar demanda; duplicatas de transporte não criam novos registros. Credenciais de envio ficam nos servidores dos sites, nunca no JavaScript público. Veja [instalação e integração dos formulários](relay/README.md). O código inclui Docker/Coolify e exemplos; nenhuma alteração ou implantação foi feita no VPS ou nos sites reais.
 
-Monitor externo independente do VPS, métricas de CPU/RAM/disco e teste sintético semanal ainda não foram implementados.
+Monitor externo independente do VPS, métricas de CPU/RAM/disco e teste sintético semanal ainda não foram implementados. Veja [como interpretar as checagens e o histórico](docs/SITES.md).
 
 ## Pasta de arquivos
 

@@ -57,9 +57,13 @@ Em 12/11/2026: 37 testes de backend e 3 testes de componentes aprovados. A compi
 
 Os testes do relay executam o serviço real com bancos temporários: autenticação por função, validação sem eco de dados, limite de tamanho e taxa, descarte de testes, idempotência, conflito de identificadores, reinício, ACK perdido, commit local antes da confirmação, site sem mapeamento e deduplicação entre canais nos dois sentidos. Tokens são testados com cofre em memória; nenhuma credencial real foi usada.
 
+O [build Windows de 50bffd2](https://github.com/pbrmarcos/monitor/actions/runs/43258676038) passou nos testes, empacotamento do sidecar, smoke tests do executável, scheduler com fuso, frontend, Rust e geração dos instaladores NSIS/MSI. Os pacotes `v0.4.0-alpha.1` vêm dessa execução. As alterações posteriores são documentação; o código distribuído corresponde ao build validado. A interação manual com recursos nativos continua pendente.
+
 Consultas públicas pontuais: Carteira Pronta, WebQ e Nextlink responderam HTTP 200; o endereço Rocha Comercial sem `www` respondeu 200, enquanto a versão com `www` falhou na resolução de DNS nesta consulta. Isso é uma observação local, não uma medição de disponibilidade contínua ou falha universal de DNS.
 
-Docker e PHP não estão instalados no ambiente local: o contêiner e a função PHP auxiliar não foram executados aqui. A aplicação FastAPI do relay foi exercitada pelos testes. Implantação no Coolify, adaptação dos handlers, coleta com formulários reais, monitor externo, métricas do host e teste sintético semanal permanecem pendentes. O código não altera os sites existentes nem publica o relay.
+Docker e PHP não estão instalados no ambiente local. O [CI do relay](https://github.com/pbrmarcos/monitor/actions/runs/43258419624) construiu e executou a imagem Linux com usuário sem privilégios e volume persistente, verificou recebimento, repetição segura, reinício, recuperação da fila e ACK. A sintaxe da função auxiliar passou no PHP 8.3; sua adaptação a um handler real continua pendente. O teste de prontidão foi ajustado para repetir conexões reiniciadas enquanto o contêiner sobe.
+
+Implantação no Coolify, adaptação dos handlers, coleta com formulários reais, monitor externo, métricas do host e teste sintético semanal permanecem pendentes. O código não altera os sites existentes nem publica o relay.
 
 ## Revisão de continuidade
 
