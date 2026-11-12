@@ -8,6 +8,8 @@ Testes com relógio controlado cobrem fusos, dias úteis, recuperação após re
 
 Validação local: 28 testes backend e 3 testes de componentes passaram; TypeScript/Vite compilou. O teste visual passou nas nove telas e em três larguras. O teste integrado criou um lembrete atrasado, aguardou o worker real gerar o aviso e confirmou persistência após recarregar a interface. Nenhum toast real foi enviado nesse teste.
 
+O [build final de 18c4cac](https://github.com/pbrmarcos/monitor/actions/runs/43249286851) passou: testes, sidecar, teste do scheduler dentro do executável, frontend, ponte Rust e instaladores NSIS/MSI. Os pacotes da versão 0.3 vêm dessa execução. Alterações posteriores são documentação e o Cargo.lock resolvido pelo próprio build.
+
 Exibição real de toast, clique e indicador da bandeja ainda exigem validação no aplicativo instalado. O sucesso da chamada ao plugin significa encaminhamento, não prova de leitura pelo usuário. Consulte `AGENDA.md` para funcionamento e limites.
 
 ## Verificações anteriores (Fases 1 e 2)
