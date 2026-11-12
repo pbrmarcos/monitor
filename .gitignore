@@ -1,0 +1,43 @@
+# Credentials and local settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Runtime and private data
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.log
+data/
+backups/
+logs/
+attachments/
+
+# Dependencies and build outputs
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+target/
+dist/
+build/
+coverage/
+*.egg-info/
+
+# Local tools and temporary files
+.codex/
+.agents/
+.aws/
+.idea/
+.vscode/
+tmp/
+.DS_Store
+Thumbs.db
