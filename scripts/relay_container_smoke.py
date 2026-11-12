@@ -15,7 +15,7 @@ for _ in range(30):
         with urlopen(base + '/health', timeout=2) as response:
             assert json.load(response)['ok']
         break
-    except URLError:
+    except (URLError, OSError):
         time.sleep(1)
 else:
     raise RuntimeError('Relay did not start')
