@@ -16,5 +16,9 @@ if (-not $targetTriple) { throw 'Não foi possível identificar o target Rust.' 
 Copy-Item -LiteralPath 'app/desktop/src-tauri/binaries/monitor-backend.exe' -Destination "app/desktop/src-tauri/binaries/monitor-backend-$targetTriple.exe" -Force
 Invoke-Checked { npm.cmd run tauri -- build }
 New-Item -ItemType Directory -Force dist | Out-Null
+New-Item -ItemType Directory -Force dist/portable | Out-Null
+Copy-Item -LiteralPath 'app/desktop/src-tauri/target/release/monitor.exe' -Destination dist/portable -Force
+Copy-Item -LiteralPath 'app/desktop/src-tauri/binaries/monitor-backend.exe' -Destination dist/portable -Force
+Copy-Item -LiteralPath 'app/desktop/src-tauri/Cargo.lock' -Destination dist/portable -Force
 Get-ChildItem -LiteralPath 'app/desktop/src-tauri/target/release/bundle' -Recurse -File | Where-Object Extension -In '.exe','.msi' | Copy-Item -Destination dist -Force
 Write-Host 'Instaladores gerados em dist/'

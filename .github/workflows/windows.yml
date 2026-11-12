@@ -10,6 +10,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,11 +21,18 @@ jobs:
         with:
           python-version: '3.12'
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            app/desktop/src-tauri/target
+          key: windows-rust-${{ hashFiles('app/desktop/src-tauri/Cargo.toml') }}
       - name: Build and test
         shell: pwsh
         run: ./scripts/build_windows.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: monitor-windows-installers
-          path: dist/*
+          path: dist/**
           if-no-files-found: error
