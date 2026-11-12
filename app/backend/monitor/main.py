@@ -171,7 +171,9 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
 
     @app.get('/demands/{identifier}/events')
     def events(identifier: int, db: Session = Depends(session)):
-        return db.exec(select(Event).where(Event.demand_id == identifier).order_by(Event.id.desc())).all()
+        items = db.exec(select(Event).where(Event.demand_id == identifier).order_by(Event.id.desc())).all()
+        # SQLite stores UTC timestamps without timezone metadata; restore it on output.
+        return [{**item.model_dump(), 'created_at': item.created_at.replace(tzinfo=timezone.utc)} for item in items]
 
     @app.get('/settings')
     def settings(db: Session = Depends(session)):

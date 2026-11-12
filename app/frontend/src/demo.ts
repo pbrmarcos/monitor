@@ -1,10 +1,100 @@
-import type {Demand} from './api';
-export const today=()=>new Date().toLocaleDateString('en-CA');
-export const demoDemands:Demand[]=[
-{id:1,title:'Preparar proposta para Ana',front_id:1,contact:'Ana · exemplo',channel:'email',stage:'preparar_proposta',priority:'alta',due:today(),next_action:'Revisar escopo e enviar pelo canal original',return_date:null,summary:'Pedido de orçamento fictício para explorar o painel.'},
-{id:2,title:'Revisar briefing do projeto',front_id:2,contact:'Pedro · exemplo',channel:'email',stage:'qualificacao',priority:'normal',due:today(),next_action:'Conferir os materiais recebidos',return_date:null,summary:'Briefing ilustrativo.'},
-{id:3,title:'Atualizar apresentação comercial',front_id:3,contact:'',channel:'manual',stage:'novo',priority:'normal',due:null,next_action:'Selecionar os projetos recentes',return_date:null,summary:''},
-{id:4,title:'Retornar sobre proposta enviada',front_id:4,contact:'Clara · exemplo',channel:'manual',stage:'acompanhar',priority:'normal',due:null,next_action:'Consultar o retorno do cliente',return_date:today(),summary:'Acompanhamento de demonstração.'}
+import type { Demand } from "./api";
+export const today = () => new Date().toLocaleDateString("en-CA");
+export const demoDemands: Demand[] = [
+  {
+    id: 1,
+    title: "Preparar proposta para Ana",
+    front_id: 1,
+    contact: "Ana · exemplo",
+    channel: "email",
+    stage: "preparar_proposta",
+    priority: "alta",
+    due: today(),
+    next_action: "Revisar escopo e enviar pelo canal original",
+    return_date: null,
+    summary: "Pedido de orçamento fictício para explorar o painel.",
+  },
+  {
+    id: 2,
+    title: "Revisar briefing do projeto",
+    front_id: 2,
+    contact: "Pedro · exemplo",
+    channel: "email",
+    stage: "qualificacao",
+    priority: "normal",
+    due: today(),
+    next_action: "Conferir os materiais recebidos",
+    return_date: null,
+    summary: "Briefing ilustrativo.",
+  },
+  {
+    id: 3,
+    title: "Atualizar apresentação comercial",
+    front_id: 3,
+    contact: "",
+    channel: "manual",
+    stage: "novo",
+    priority: "normal",
+    due: null,
+    next_action: "Selecionar os projetos recentes",
+    return_date: null,
+    summary: "",
+  },
+  {
+    id: 4,
+    title: "Retornar sobre proposta enviada",
+    front_id: 4,
+    contact: "Clara · exemplo",
+    channel: "manual",
+    stage: "acompanhar",
+    priority: "normal",
+    due: null,
+    next_action: "Consultar o retorno do cliente",
+    return_date: today(),
+    summary: "Acompanhamento de demonstração.",
+  },
 ];
-export const emails=[{id:1,front:1,from:'Ana Souza',subject:'Orçamento para novo projeto',body:'Olá, Marcos! Gostaria de receber uma proposta para nosso novo projeto. Podemos conversar sobre o escopo?',category:'Orçamento',importance:'Precisam de ação'}, {id:2,front:2,from:'Pedro Lima',subject:'Briefing e referências',body:'Segue o briefing para revisão. Podemos alinhar os detalhes na próxima conversa?',category:'Cliente',importance:'Revisar'}, {id:3,front:3,from:'Boletim de design',subject:'Referências da semana',body:'Uma seleção de novidades e referências para sua leitura.',category:'Informativo',importance:'Informativos'}];
-export const files=[{name:'Proposta_Ana.pdf',front:1,category:'Proposta',size:'248 KB'}, {name:'Briefing_projeto.docx',front:2,category:'Briefing',size:'1,2 MB'}, {name:'Apresentação_comercial.pdf',front:3,category:'Material',size:'4,8 MB'}];
+export const emails = [
+  {
+    id: 1,
+    front: 1,
+    from: "Ana Souza",
+    subject: "Orçamento para novo projeto",
+    body: "Olá, Marcos! Gostaria de receber uma proposta para nosso novo projeto. Podemos conversar sobre o escopo?",
+    category: "Orçamento",
+    importance: "Precisam de ação",
+  },
+  {
+    id: 2,
+    front: 2,
+    from: "Pedro Lima",
+    subject: "Briefing e referências",
+    body: "Segue o briefing para revisão. Podemos alinhar os detalhes na próxima conversa?",
+    category: "Cliente",
+    importance: "Revisar",
+  },
+  {
+    id: 3,
+    front: 3,
+    from: "Boletim de design",
+    subject: "Referências da semana",
+    body: "Uma seleção de novidades e referências para sua leitura.",
+    category: "Informativo",
+    importance: "Informativos",
+  },
+];
+export const files = [
+  { name: "Proposta_Ana.pdf", front: 1, category: "Proposta", size: "248 KB" },
+  {
+    name: "Briefing_projeto.docx",
+    front: 2,
+    category: "Briefing",
+    size: "1,2 MB",
+  },
+  {
+    name: "Apresentação_comercial.pdf",
+    front: 3,
+    category: "Material",
+    size: "4,8 MB",
+  },
+];

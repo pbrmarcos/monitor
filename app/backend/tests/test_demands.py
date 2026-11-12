@@ -23,6 +23,7 @@ def test_persistence_history_and_followup(tmp_path):
         demand['return_date'] = '2026-12-15'
         assert api.put(f"/demands/{demand['id']}", json=demand).status_code == 200
         assert len(api.get(f"/demands/{demand['id']}/events").json()) == 2
+        assert api.get(f"/demands/{demand['id']}/events").json()[0]['created_at'].endswith(('+00:00', 'Z'))
     with client(tmp_path) as api:
         assert api.get('/demands').json()[0]['return_date'] == '2026-12-15'
         assert api.delete(f"/demands/{demand['id']}").status_code == 204

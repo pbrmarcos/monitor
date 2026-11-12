@@ -1,1 +1,11 @@
-{"name":"@monitor/desktop","version":"0.1.0-alpha.1","private":true,"scripts":{"tauri":"tauri"},"devDependencies":{"@tauri-apps/cli":"^2.0.0"}}
+{
+  "name": "@monitor/desktop",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

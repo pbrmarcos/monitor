@@ -1,27 +1,33 @@
-import {chromium} from '@playwright/test';
-import {mkdir} from 'node:fs/promises';
-const browser=await chromium.launch({headless:true, channel:'msedge'});
-const page=await browser.newPage({viewport:{width:1600,height:1050}});
-const errors=[];page.on('pageerror',error=>errors.push(error.message));
-await page.goto('http://127.0.0.1:1420');
-await page.getByText('Explorar demonstração').click();
-await page.evaluate(()=>document.fonts.ready);
-await mkdir('tmp/ui',{recursive:true});
-await page.screenshot({path:'tmp/ui/overview.png',fullPage:true});
-await page.getByRole('button',{name:'Nova demanda',exact:true}).click();
-await page.getByLabel('Título',{exact:true}).fill('Demanda criada no teste visual');
-await page.getByRole('button',{name:'Salvar demanda'}).click();
-await page.locator('nav').getByRole('button',{name:/Demandas/}).click();
-await page.getByText('Demanda criada no teste visual',{exact:true}).click();
-await page.getByRole('button',{name:'Editar demanda',exact:true}).click();
-await page.screenshot({path:'tmp/ui/edit-dialog.png',fullPage:true});
-await page.getByLabel('Etapa',{exact:true}).selectOption('acompanhar');
-await page.getByLabel(/Data de retorno/).fill('2026-12-15');
-await page.getByRole('button',{name:'Salvar demanda'}).click();
-await page.screenshot({path:'tmp/ui/kanban.png',fullPage:true});
-await page.getByRole('button',{name:'Visão geral',exact:true}).click();
-await page.setViewportSize({width:820,height:1000});
-await page.screenshot({path:'tmp/ui/compact.png',fullPage:true});
-if(errors.length)throw new Error(errors.join('\n'));
-console.log('UI smoke: create, edit, follow-up and compact viewport OK');
+import { chromium } from "@playwright/test";
+import { mkdir } from "node:fs/promises";
+const browser = await chromium.launch({ headless: true, channel: "msedge" });
+const page = await browser.newPage({ viewport: { width: 1600, height: 1050 } });
+const errors = [];
+page.on("pageerror", (error) => errors.push(error.message));
+await page.goto("http://127.0.0.1:1420");
+await page.getByText("Explorar demonstração").click();
+await page.evaluate(() => document.fonts.ready);
+await mkdir("tmp/ui", { recursive: true });
+await page.screenshot({ path: "tmp/ui/overview.png", fullPage: true });
+await page.getByRole("button", { name: "Nova demanda", exact: true }).click();
+await page
+  .getByLabel("Título", { exact: true })
+  .fill("Demanda criada no teste visual");
+await page.getByRole("button", { name: "Salvar demanda" }).click();
+await page
+  .locator("nav")
+  .getByRole("button", { name: /Demandas/ })
+  .click();
+await page.getByText("Demanda criada no teste visual", { exact: true }).click();
+await page.getByRole("button", { name: "Editar demanda", exact: true }).click();
+await page.screenshot({ path: "tmp/ui/edit-dialog.png", fullPage: true });
+await page.getByLabel("Etapa", { exact: true }).selectOption("acompanhar");
+await page.getByLabel(/Data de retorno/).fill("2026-12-15");
+await page.getByRole("button", { name: "Salvar demanda" }).click();
+await page.screenshot({ path: "tmp/ui/kanban.png", fullPage: true });
+await page.getByRole("button", { name: "Visão geral", exact: true }).click();
+await page.setViewportSize({ width: 820, height: 1000 });
+await page.screenshot({ path: "tmp/ui/compact.png", fullPage: true });
+if (errors.length) throw new Error(errors.join("\n"));
+console.log("UI smoke: create, edit, follow-up and compact viewport OK");
 await browser.close();

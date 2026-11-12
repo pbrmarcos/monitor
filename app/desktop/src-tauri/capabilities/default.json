@@ -1,1 +1,16 @@
-{"identifier":"default","description":"Permissões locais da janela principal","windows":["main"],"permissions":["core:default","autostart:allow-enable","autostart:allow-disable","autostart:allow-is-enabled","notification:default",{"identifier":"opener:allow-open-url","allow":[{"url":"https://ollama.com/download/windows"}]}]}
+{
+  "identifier": "default",
+  "description": "Permissões locais da janela principal",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
+    "notification:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://ollama.com/download/windows" }]
+    }
+  ]
+}

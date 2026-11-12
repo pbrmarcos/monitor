@@ -1,67 +1,1459 @@
-import {useEffect,useRef,useState} from 'react';
-import {Activity,ArrowDownToLine,ArrowRight,ArrowUpRight,Bell,Check,ChevronRight,FileText,Folder,Globe,LayoutDashboard,Mail,MessageSquare,Plus,Search,Settings,SlidersHorizontal,Sparkles,Square,Workflow,X} from 'lucide-react';
-import {isTauri} from '@tauri-apps/api/core';
-import {listen} from '@tauri-apps/api/event';
-import {openUrl} from '@tauri-apps/plugin-opener';
-import {api,connect,Demand,pullModel,stages} from './api';
-import {demoDemands,emails,files,today} from './demo';
+import { useEffect, useRef, useState } from "react";
+import {
+  Activity,
+  ArrowDownToLine,
+  ArrowRight,
+  ArrowUpRight,
+  Bell,
+  Check,
+  ChevronRight,
+  FileText,
+  Folder,
+  Globe,
+  LayoutDashboard,
+  Mail,
+  MessageSquare,
+  Plus,
+  Search,
+  Settings,
+  SlidersHorizontal,
+  Sparkles,
+  Square,
+  Workflow,
+  X,
+} from "lucide-react";
+import { isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { api, connect, Demand, pullModel, stages } from "./api";
+import { demoDemands, emails, files, today } from "./demo";
 
-const nav=[['Visão geral',LayoutDashboard],['Demandas',Workflow],['E-mails',Mail],['Sites',Globe],['Redes sociais',Activity],['Arquivos',Folder],['Assistente',MessageSquare],['Configurações',Settings]] as const;
-const initial=():Omit<Demand,'id'>=>({title:'',front_id:1,contact:'',channel:'manual',stage:'novo',priority:'normal',due:null,next_action:'',return_date:null,summary:''});
-const dateLabel=(date:string|null)=>date?new Date(date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}):'Sem prazo';
-const closed=(d:Demand)=>['ganho','perdido'].includes(d.stage);
+const nav = [
+  ["Visão geral", LayoutDashboard],
+  ["Demandas", Workflow],
+  ["E-mails", Mail],
+  ["Sites", Globe],
+  ["Redes sociais", Activity],
+  ["Arquivos", Folder],
+  ["Assistente", MessageSquare],
+  ["Configurações", Settings],
+] as const;
+const initial = (): Omit<Demand, "id"> => ({
+  title: "",
+  front_id: 1,
+  contact: "",
+  channel: "manual",
+  stage: "novo",
+  priority: "normal",
+  due: null,
+  next_action: "",
+  return_date: null,
+  summary: "",
+});
+const dateLabel = (date: string | null) =>
+  date
+    ? new Date(date + "T12:00:00").toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "short",
+      })
+    : "Sem prazo";
+const closed = (d: Demand) => ["ganho", "perdido"].includes(d.stage);
 
-export default function App(){
- const [page,setPage]=useState('Visão geral'),[front,setFront]=useState(0),[demands,setDemands]=useState<Demand[]>([]),[connected,setConnected]=useState(false),[preview,setPreview]=useState(false),[busy,setBusy]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[query,setQuery]=useState(''),[tab,setTab]=useState('Hoje'),[editing,setEditing]=useState<Partial<Demand>|null>(null),[detail,setDetail]=useState<Demand|null>(null),[history,setHistory]=useState<{id:number;description:string;created_at:string}[]>([]),[saving,setSaving]=useState(false);
- const [emailTab,setEmailTab]=useState('Todos'),[emailId,setEmailId]=useState(1),[fileCategory,setFileCategory]=useState('Todas'),[period,setPeriod]=useState('30 dias');
- const [model,setModel]=useState('qwen3.5:4b-q4_K_M'),[ollama,setOllama]=useState<{available:boolean;models:string[]}|null>(null),[download,setDownload]=useState(''),[pulling,setPulling]=useState(false),[autostart,setAutostart]=useState(false);
- const [messages,setMessages]=useState<{role:string;text:string}[]>([]),[question,setQuestion]=useState('');
- async function load(){setBusy(true);setError('');try{await connect();const health=await api<{demo:boolean}>('/health');setPreview(health.demo);setDemands(await api<Demand[]>('/demands'));setConnected(true);setModel((await api<{model:string}>('/settings')).model);setOllama(await api('/ollama'));}catch(e){setError(String((e as Error).message));}finally{setBusy(false);}}
- useEffect(()=>{void load();let dispose:undefined|(()=>void);if(isTauri())listen<string>('navigate',event=>{if(event.payload==='new')setEditing(initial());else setPage('Visão geral');}).then(fn=>dispose=fn);return()=>dispose?.();},[]);
- useEffect(()=>{if(!detail||!connected){setHistory([]);return;}api<typeof history>(`/demands/${detail.id}/events`).then(setHistory).catch(()=>setHistory([]));},[detail,connected]);
- useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),5000);return()=>clearTimeout(timer);},[notice]);
- function demo(){setDemands(demoDemands);setPreview(true);setError('');}
- const visible=demands.filter(d=>(!front||d.front_id===front)&&`${d.title} ${d.contact}`.toLowerCase().includes(query.toLowerCase()));
- const open=visible.filter(d=>!closed(d)),due=open.filter(d=>(d.due&&d.due<=today())||(d.return_date&&d.return_date<=today()));
- const sampleEmails=emails.filter(e=>!front||e.front===front);
- const showSamples=preview;
- async function save(value:Partial<Demand>){setSaving(true);try{const payload={...initial(),...value};const item=connected?await api<Demand>(value.id?`/demands/${value.id}`:'/demands',value.id?'PUT':'POST',payload):{...payload,id:value.id||Date.now()} as Demand;if(!connected&&item.stage==='acompanhar'&&!item.return_date)throw new Error('Informe uma data de retorno.');setDemands(old=>value.id?old.map(d=>d.id===item.id?item:d):[item,...old]);setEditing(null);setDetail(null);setNotice(value.id?'Demanda atualizada.':'Demanda criada.');}catch(e){setError((e as Error).message);}finally{setSaving(false);}}
- async function remove(){if(!detail||!window.confirm('Excluir esta demanda e seu histórico?'))return;try{if(connected)await api(`/demands/${detail.id}`,'DELETE');setDemands(old=>old.filter(d=>d.id!==detail.id));setDetail(null);setNotice('Demanda excluída.');}catch(e){setError((e as Error).message);}}
- function move(d:Demand,stage:string){if(stage==='acompanhar'&&!d.return_date){setEditing({...d,stage});return;}void save({...d,stage});}
- function emailDemand(id:number){const e=emails.find(e=>e.id===id)!;setEditing({...initial(),front_id:e.front,title:e.subject,channel:'email',contact:e.from,summary:e.body});}
- function ask(text:string){if(!text.trim())return;setMessages(old=>[...old,{role:'user',text},{role:'assistant',text:'O chat com IA será conectado na Fase 6. Por enquanto, você pode consultar a fila de demandas e os prazos diretamente no painel. Nenhuma mensagem foi enviada ao modelo.'}]);setQuestion('');}
- const demoBadge=<span className="badge">Demonstração</span>;
- const panel=(title:string,children:React.ReactNode,action?:React.ReactNode)=><section className="panel" key={title}><div className="panel-heading"><h2>{title}</h2>{action}</div>{children}</section>;
- const taskRows=(items:Demand[])=><div className="tasks">{items.length?items.map(d=><button className="task" key={d.id} onClick={()=>setDetail(d)}><span className="task-icon"><Square size={17}/></span><span className="task-title"><strong>{d.title}</strong><small>Frente {String(d.front_id).padStart(2,'0')} · {d.channel==='manual'?'Criada por você':d.channel}</small></span><span className={`due ${d.due&&d.due<today()?'overdue':''}`}>{dateLabel(d.due||d.return_date)}</span><span className={`tag ${d.priority==='alta'?'priority':''}`}>{d.priority==='alta'?'Prioridade':stages[d.stage as keyof typeof stages]}</span><ChevronRight size={16}/></button>):<Empty text="Tudo em dia por aqui."/>}</div>;
- const sitesBlock=<div className="site-list">{showSamples?[1,2,3,4].filter(n=>!front||front===n).map(n=><div className="site-row" key={n}><Globe size={17}/><strong>frente0{n}.example</strong><span className="status-dot"/> <span>Online</span><small>{180+n*17} ms</small></div>):<Empty text="Nenhum site conectado. Monitoramento disponível na Fase 4."/>}</div>;
- const socialBlock=<div className="table-wrap"><table><thead><tr><th>Perfil</th><th>Seguidores</th><th>Variação 7 dias</th><th>Mensagens</th></tr></thead><tbody>{showSamples&&[2480,1820,965,3210].map((followers,i)=>(!front||front===i+1)&&<tr key={i}><td><strong>@frente0{i+1}</strong></td><td>{followers.toLocaleString('pt-BR')}</td><td>+{[124,68,32,146][i]} <span className="sparkline">▁▂▂▃▂▄▅▆</span></td><td>{[3,2,1,1][i]} pendentes</td></tr>)}</tbody></table>{!showSamples&&<Empty text="Conectores oficiais serão disponibilizados na Fase 7."/>}</div>;
- const assistant=<div className="assistant-body"><div className="assistant-greeting"><div className="ai-mark"><Sparkles size={21}/></div><h2>Um pouco mais de clareza.</h2><p>Consulte suas demandas e organize os próximos passos com contexto.</p><span className="badge">Chat disponível na Fase 6</span></div><div className="chat-messages">{messages.map((m,i)=><div key={i} className={`message ${m.role}`}>{m.text}</div>)}</div><div className="chat-bottom"><div className="quick-prompts">{['O que priorizar hoje?','Resumir meus e-mails'].map(q=><button key={q} onClick={()=>ask(q)}>{q}<ArrowUpRight size={14}/></button>)}</div><form className="chat-input" onSubmit={e=>{e.preventDefault();ask(question);}}><textarea aria-label="Mensagem para o assistente" placeholder="Converse com seu assistente…" value={question} onChange={e=>setQuestion(e.target.value)}/><button className="icon-button primary" aria-label="Enviar mensagem"><ArrowRight size={18}/></button></form><small>IA local · sugestões precisam de revisão</small></div></div>;
- const titles:Record<string,string>={'Visão geral':'Tudo sob controle.','Demandas':'Cada oportunidade, um próximo passo.','E-mails':'Sua caixa de entrada, organizada.','Sites':'Sua presença sempre à vista.','Redes sociais':'Acompanhe suas conexões.','Arquivos':'Tudo no lugar certo.','Assistente':'Pense junto com seu assistente.','Configurações':'Do seu jeito.'};
- return <div className="app-shell"><aside className="sidebar"><a className="brand" href="#" onClick={e=>{e.preventDefault();setPage('Visão geral');}}><span className="brand-symbol">▰</span> MONITOR<span className="brand-dot"/></a><span className="nav-label">ESPAÇO DE TRABALHO</span><nav>{nav.map(([label,Icon])=><button key={label} aria-label={label} title={label} className={page===label?'active':''} onClick={()=>{setPage(label);setQuery('');}}><Icon size={19}/><span>{label}</span>{label==='Demandas'&&<span className="nav-count">{demands.filter(d=>!closed(d)).length}</span>}</button>)}</nav><div className="sidebar-bottom"><div className="local-state"><span className="status-dot"/><span>{connected?'Backend local conectado':'Prévia da interface'}</span></div><div className="profile"><span className="avatar">M</span><div><strong>Marcos</strong><small>Seu espaço pessoal</small></div><SlidersHorizontal size={17}/></div></div></aside>
- <main className={`main ${page==='Visão geral'?'with-assistant':''}`}><div className="topbar"><span>SEU CENTRO DE OPERAÇÃO</span><div><span className="badge">{preview?'Demonstração · dados fictícios':'Versão de desenvolvimento'}</span><Bell size={18}/></div></div><header className="page-header"><div><div className="eyebrow">{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</div><h1>{titles[page]}</h1><p>{page==='Visão geral'?'Menos ruído. Mais foco no que precisa de você.':page}</p></div><button className="primary" onClick={()=>setEditing({...initial(),front_id:front||1})} disabled={!connected&&!preview}><Plus size={17}/>Nova demanda</button></header>
- {error&&<div role="alert" className="error-banner">{error}<button onClick={()=>setError('')} aria-label="Fechar erro"><X size={16}/></button></div>}{notice&&<div role="status" className="notice">{notice}</div>}
- {!connected&&!preview&&<section className="welcome panel"><Sparkles size={28}/><h2>{busy?'Iniciando sua central…':'Bem-vindo ao Monitor'}</h2><p>O aplicativo desktop mantém suas demandas no banco local. Você também pode explorar uma demonstração sem salvar dados.</p><div className="button-row"><button className="primary" onClick={()=>void load()} disabled={busy}>Tentar conectar</button><button onClick={demo}>Explorar demonstração</button></div></section>}
- <div className="filter-row"><div className="front-filters">{[0,1,2,3,4].map(n=><button key={n} aria-pressed={front===n} className={front===n?'selected':''} onClick={()=>setFront(n)}>{n===0?'Todas as frentes':`Frente 0${n}`}</button>)}</div>{['Visão geral','Demandas','Arquivos'].includes(page)&&<label className="search"><Search size={16}/><input aria-label="Buscar" placeholder={page==='Arquivos'?'Buscar arquivo…':'Buscar demanda…'} value={query} onChange={e=>setQuery(e.target.value)}/></label>}</div>
- {page==='Visão geral'&&<><div className="metrics">{[['Demandas abertas',open.length,`${due.length} precisam de atenção`,Workflow],['E-mails recebidos',showSamples?sampleEmails.length:'—',showSamples?'Exemplos de mensagens':'Nenhuma conta conectada',Mail],['Sites disponíveis',showSamples?(front?'1 / 1':'4 / 4'):'—','Monitoramento demonstrativo',Globe],['Mensagens pendentes',showSamples?(front?[3,2,1,1][front-1]:7):'—','Integrações não conectadas',MessageSquare]].map(([label,value,caption,Icon])=>{const MetricIcon=Icon as typeof Mail;return <div className="metric" key={String(label)}><div><span>{String(label)}</span><MetricIcon size={19}/></div><strong>{String(value)}</strong><small>{String(caption)}</small></div>;})}</div>
- {panel('Sua fila de trabalho',<><div className="tabs">{['Hoje','Todas','Sugestões da IA'].map(t=><button key={t} className={tab===t?'selected':''} onClick={()=>setTab(t)}>{t}<span>{t==='Hoje'?due.length:t==='Todas'?open.length:0}</span></button>)}</div>{tab==='Sugestões da IA'?<Empty text="As sugestões de e-mail estarão disponíveis na Fase 2."/>:taskRows(tab==='Hoje'?due:open)}</>,<button className="text-button" onClick={()=>setPage('Demandas')}>Ver todas<ArrowUpRight size={15}/></button>)}
- <div className="two-col">{panel('E-mails → demandas',<>{showSamples?sampleEmails.map(e=><div className="email-row" key={e.id}><span className="soft-icon"><Mail size={18}/></span><div><strong>{e.subject}</strong><small>Frente 0{e.front} · {e.from}</small></div><button className="small-button" onClick={()=>emailDemand(e.id)}><Plus size={14}/>Demanda</button></div>):<Empty text="Conecte suas contas na próxima fase."/>}<button className="panel-footer" onClick={()=>setPage('E-mails')}>Abrir caixa unificada<ArrowRight size={15}/></button></>,demoBadge)}{panel('Saúde dos sites',<>{sitesBlock}<button className="panel-footer" onClick={()=>setPage('Sites')}>Ver monitoramento<ArrowRight size={15}/></button></>,demoBadge)}</div>{panel('Redes sociais',socialBlock,demoBadge)}<div className="bottom-note"><span className="status-dot"/> Seus dados ficam com você. Integrações de demonstração não consultam contas reais.</div></>}
- {page==='Demandas'&&<><div className="section-toolbar"><p>{visible.length} demandas · arraste para mudar de etapa ou abra um cartão</p><span className="badge">Persistência {connected?'local':'temporária'}</span></div><div className="kanban">{Object.entries(stages).map(([stage,label])=><section className="kanban-column" key={stage} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const d=demands.find(d=>d.id===Number(e.dataTransfer.getData('text/plain')));if(d)move(d,stage);}}><h2><span>{label}</span><small>{visible.filter(d=>d.stage===stage).length}</small></h2>{visible.filter(d=>d.stage===stage).map(d=><button className="kanban-card" key={d.id} draggable onDragStart={e=>e.dataTransfer.setData('text/plain',String(d.id))} onClick={()=>setDetail(d)}><span className="eyebrow">FRENTE 0{d.front_id}</span><strong>{d.title}</strong><p>{d.next_action||'Defina a próxima ação'}</p><footer><span>{dateLabel(d.due||d.return_date)}</span>{d.priority==='alta'&&<span className="tag priority">Alta</span>}</footer></button>)}<button className="add-card" onClick={()=>setEditing({...initial(),stage,front_id:front||1})}><Plus size={15}/>Adicionar</button></section>)}</div></>}
- {page==='E-mails'&&<>{panel('Caixa unificada',<><div className="info-strip">Mensagens fictícias. A coleta IMAP será implementada na Fase 2; nenhuma conta está conectada.</div><div className="tabs">{['Todos','Importantes','Precisam de ação','Revisar','Informativos'].map(t=><button className={emailTab===t?'selected':''} key={t} onClick={()=>setEmailTab(t)}>{t}</button>)}</div><div className="mail-layout"><div className="mail-list">{showSamples?sampleEmails.filter(e=>emailTab==='Todos'||e.importance===emailTab||(emailTab==='Importantes'&&e.importance==='Precisam de ação')).map(e=><button key={e.id} onClick={()=>setEmailId(e.id)} className={emailId===e.id?'selected':''}><small>Frente 0{e.front}</small><strong>{e.from}</strong><span>{e.subject}</span><span className="tag">{e.importance}</span></button>):<Empty text="Nenhum e-mail recebido."/>}</div><div className="mail-reader">{showSamples&&(()=>{const e=sampleEmails.find(e=>e.id===emailId)||sampleEmails[0];return e?<><span className="eyebrow">MENSAGEM DE DEMONSTRAÇÃO</span><h2>{e.subject}</h2><p className="muted">{e.from} · Frente 0{e.front}</p><p>{e.body}</p><div className="analysis"><h3><Sparkles size={17}/>Análise ilustrativa</h3><p>{e.category} · {e.importance}</p><p>Classificação de exemplo. Nenhum modelo analisou esta mensagem.</p></div><button className="primary" onClick={()=>emailDemand(e.id)}><Plus size={16}/>Criar demanda</button></>:null;})()}</div></div></>)}</>}
- {page==='Sites'&&<><div className="info-strip">Dados demonstrativos. Verificações HTTP, SSL, formulários e monitor externo chegam na Fase 4.</div><div className="two-col">{showSamples?[1,2,3,4].filter(n=>!front||front===n).map(n=>panel(`frente0${n}.example`,<div className="site-detail"><div className="site-detail-status"><span className="status-dot"/>Online<span className="muted">Exemplo</span></div><div className="uptime-bars">{Array.from({length:30},(_,i)=><span key={i}/>)}</div><div className="split"><span>Últimos 30 dias</span><strong>99,98%</strong></div><div className="site-stats"><div><small>RESPOSTA</small><strong>{180+n*17} ms</strong></div><div><small>SSL</small><strong>82 dias</strong></div><div><small>FORMULÁRIO</small><strong>Exemplo OK</strong></div></div></div>,demoBadge)):<Empty text="Nenhum site configurado."/>}</div>{panel('Incidentes',<Empty text="Nenhum incidente real registrado."/>)}</>}
- {page==='Redes sociais'&&<><div className="info-strip">Instagram e WhatsApp ainda não conectados. Os exemplos abaixo não representam contas reais.</div><div className="section-toolbar"><h2>Visão dos perfis</h2><select aria-label="Período" value={period} onChange={e=>setPeriod(e.target.value)}>{['7 dias','30 dias','90 dias'].map(p=><option key={p}>{p}</option>)}</select></div>{panel(`Indicadores · ${period}`,socialBlock,demoBadge)}{panel('Mensagens sem resposta',showSamples?<><div className="email-row"><span className="soft-icon"><MessageSquare size={19}/></span><div><strong>Olá! Gostaria de saber mais sobre o serviço.</strong><small>@contato_exemplo · Frente 01</small></div><button onClick={()=>setEditing({...initial(),title:'Responder interesse no serviço',channel:'instagram'})}>+ Demanda</button></div><p className="muted inset">Mensagem ilustrativa. Nenhuma conversa foi importada.</p></>:<Empty text="Nenhuma mensagem importada."/>,demoBadge)}</>}
- {page==='Arquivos'&&<>{panel('Seu acervo',<><div className="info-strip">Indexação e recebimento de arquivos disponíveis na Fase 5. Nenhuma pasta foi acessada.</div><div className="section-toolbar inset"><p>Catálogo de demonstração</p><select aria-label="Categoria do arquivo" value={fileCategory} onChange={e=>setFileCategory(e.target.value)}>{['Todas','Proposta','Briefing','Material'].map(c=><option key={c}>{c}</option>)}</select></div><div className="table-wrap"><table><thead><tr><th>Arquivo</th><th>Frente</th><th>Categoria</th><th>Tamanho</th></tr></thead><tbody>{showSamples&&files.filter(f=>(!front||f.front===front)&&(fileCategory==='Todas'||f.category===fileCategory)&&f.name.toLowerCase().includes(query.toLowerCase())).map(f=><tr key={f.name}><td><FileText size={17}/>{f.name}</td><td>Frente 0{f.front}</td><td>{f.category}</td><td>{f.size}</td></tr>)}</tbody></table></div></>)}</>}
- {page==='Assistente'&&<section className="panel full-chat">{assistant}</section>}
- {page==='Configurações'&&<div className="settings-grid">{panel('IA local',<div className="settings-content"><p>O processamento será feito no seu computador pelo Ollama.</p><div className="connection-status"><span className={`status-dot ${ollama?.available?'':'inactive'}`}/>{ollama?.available?'Ollama disponível':'Ollama não detectado'}</div><button onClick={()=>{if(connected)api<typeof ollama>('/ollama').then(setOllama).catch(e=>setError(e.message));else setNotice('Disponível no aplicativo desktop.');}}>Verificar novamente</button><label>Modelo<input value={model} onChange={e=>setModel(e.target.value)}/></label><div className="button-row"><button className="primary" disabled={!connected} onClick={()=>api('/settings','PUT',{model}).then(()=>setNotice('Modelo salvo.')).catch(e=>setError(e.message))}>Salvar modelo</button><button disabled={!connected||!ollama?.available||pulling} onClick={async()=>{setPulling(true);try{await pullModel(model,setDownload);setNotice('Download concluído.');setOllama(await api('/ollama'));}catch(e){setError((e as Error).message);}finally{setPulling(false);}}}><ArrowDownToLine size={16}/>{pulling?'Baixando…':'Baixar modelo'}</button></div>{download&&<p role="status">{download}</p>}<button className="text-button" onClick={()=>{if(isTauri())void openUrl('https://ollama.com/download/windows');else window.open('https://ollama.com/download/windows','_blank','noopener');}}>Instalar Ollama pelo site oficial<ArrowUpRight size={15}/></button><small>O modelo é configurável. Desempenho e memória precisam ser medidos neste PC.</small></div>)}{panel('Aplicativo',<div className="settings-content"><h3>Inicialização</h3><label className="checkbox-label"><input type="checkbox" checked={autostart} disabled={!isTauri()} onChange={async e=>{try{const module=await import('@tauri-apps/plugin-autostart');if(e.target.checked)await module.enable();else await module.disable();setAutostart(e.target.checked);}catch{setError('Não foi possível alterar a inicialização.');}}}/>Iniciar com o Windows</label><p>Fechar a janela mantém o Monitor na bandeja. Use “Sair” no menu para encerrar.</p><hr/><h3>Contas e integrações</h3>{['E-mail · Fase 2','Sites e formulários · Fase 4','OneDrive · Fase 5','Instagram e WhatsApp · Fase 7'].map(i=><div className="integration-row" key={i}><span>{i}</span><span className="badge">Não conectado</span></div>)}<p>Credenciais serão armazenadas no gerenciador do Windows, nunca enviadas à IA.</p></div>)}</div>}
- </main>{page==='Visão geral'&&<aside className="assistant-sidebar"><header><div><Sparkles size={19}/><strong>Assistente</strong></div><span className="badge">LOCAL</span></header>{assistant}</aside>}
- {editing&&<DemandModal value={editing} saving={saving} onClose={()=>setEditing(null)} onSave={save}/>}
- {detail&&<div className="modal-overlay" onClick={()=>setDetail(null)}><section className="detail-sheet" role="dialog" aria-modal="true" aria-label="Detalhes da demanda" onClick={e=>e.stopPropagation()}><button className="close-button" aria-label="Fechar detalhes" onClick={()=>setDetail(null)}><X size={20}/></button><span className="eyebrow">FRENTE 0{detail.front_id} · {detail.channel}</span><h2>{detail.title}</h2><span className="tag">{stages[detail.stage as keyof typeof stages]}</span><dl><dt>Contato</dt><dd>{detail.contact||'Não informado'}</dd><dt>Prazo</dt><dd>{dateLabel(detail.due)}</dd><dt>Data de retorno</dt><dd>{dateLabel(detail.return_date)}</dd><dt>Próxima ação</dt><dd>{detail.next_action||'Ainda não definida'}</dd><dt>Resumo</dt><dd>{detail.summary||'Sem resumo'}</dd></dl><div className="button-row"><button className="primary" onClick={()=>{setEditing(detail);setDetail(null);}}>Editar demanda</button><button onClick={()=>{const order=Object.keys(stages);move(detail,order[Math.min(order.indexOf(detail.stage)+1,order.length-1)]);}}>Próxima etapa<ArrowRight size={15}/></button></div><h3>Histórico</h3>{history.length?history.map(event=><p className="history-event" key={event.id}>{event.description}<small>{new Date(event.created_at).toLocaleString('pt-BR')}</small></p>):<p className="muted">{connected?'Nenhum evento anterior.':'Histórico persistente disponível no aplicativo desktop.'}</p>}<button className="danger-button" onClick={()=>void remove()}>Excluir demanda</button></section></div>}
- </div>;
+export default function App() {
+  const [page, setPage] = useState("Visão geral"),
+    [front, setFront] = useState(0),
+    [demands, setDemands] = useState<Demand[]>([]),
+    [connected, setConnected] = useState(false),
+    [preview, setPreview] = useState(false),
+    [busy, setBusy] = useState(true),
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState(""),
+    [query, setQuery] = useState(""),
+    [tab, setTab] = useState("Hoje"),
+    [editing, setEditing] = useState<Partial<Demand> | null>(null),
+    [detail, setDetail] = useState<Demand | null>(null),
+    [history, setHistory] = useState<
+      { id: number; description: string; created_at: string }[]
+    >([]),
+    [saving, setSaving] = useState(false);
+  const [emailTab, setEmailTab] = useState("Todos"),
+    [emailId, setEmailId] = useState(1),
+    [fileCategory, setFileCategory] = useState("Todas"),
+    [period, setPeriod] = useState("30 dias");
+  const [model, setModel] = useState("qwen3.5:4b-q4_K_M"),
+    [ollama, setOllama] = useState<{
+      available: boolean;
+      models: string[];
+    } | null>(null),
+    [download, setDownload] = useState(""),
+    [pulling, setPulling] = useState(false),
+    [autostart, setAutostart] = useState(false);
+  const [messages, setMessages] = useState<{ role: string; text: string }[]>(
+      [],
+    ),
+    [question, setQuestion] = useState("");
+  async function load() {
+    setBusy(true);
+    setError("");
+    try {
+      await connect();
+      const health = await api<{ demo: boolean }>("/health");
+      setPreview(health.demo);
+      setDemands(await api<Demand[]>("/demands"));
+      setConnected(true);
+      setModel((await api<{ model: string }>("/settings")).model);
+      setOllama(await api("/ollama"));
+    } catch (e) {
+      setError(String((e as Error).message));
+    } finally {
+      setBusy(false);
+    }
+  }
+  useEffect(() => {
+    void load();
+    const disposers: (() => void)[] = [];
+    let disposed = false;
+    function keep(fn: () => void) {
+      if (disposed) fn();
+      else disposers.push(fn);
+    }
+    if (isTauri()) {
+      listen<string>("navigate", (event) => {
+        if (event.payload === "new") setEditing(initial());
+        else setPage("Visão geral");
+      }).then(keep);
+      listen("backend-ready", () => void load()).then(keep);
+      import("@tauri-apps/plugin-autostart")
+        .then((plugin) => plugin.isEnabled())
+        .then(setAutostart)
+        .catch(() => {});
+    }
+    return () => {
+      disposed = true;
+      disposers.forEach((fn) => fn());
+    };
+  }, []);
+  useEffect(() => {
+    if (!detail || !connected) {
+      setHistory([]);
+      return;
+    }
+    api<typeof history>(`/demands/${detail.id}/events`)
+      .then(setHistory)
+      .catch(() => setHistory([]));
+  }, [detail, connected]);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(""), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+  function demo() {
+    setDemands(demoDemands);
+    setPreview(true);
+    setError("");
+  }
+  const visible = demands.filter(
+    (d) =>
+      (!front || d.front_id === front) &&
+      `${d.title} ${d.contact}`.toLowerCase().includes(query.toLowerCase()),
+  );
+  const open = visible.filter((d) => !closed(d)),
+    due = open.filter(
+      (d) =>
+        (d.due && d.due <= today()) ||
+        (d.return_date && d.return_date <= today()),
+    );
+  const sampleEmails = emails.filter((e) => !front || e.front === front);
+  const showSamples = preview;
+  async function save(value: Partial<Demand>) {
+    setSaving(true);
+    try {
+      const payload = { ...initial(), ...value };
+      const item = connected
+        ? await api<Demand>(
+            value.id ? `/demands/${value.id}` : "/demands",
+            value.id ? "PUT" : "POST",
+            payload,
+          )
+        : ({ ...payload, id: value.id || Date.now() } as Demand);
+      if (!connected && item.stage === "acompanhar" && !item.return_date)
+        throw new Error("Informe uma data de retorno.");
+      setDemands((old) =>
+        value.id
+          ? old.map((d) => (d.id === item.id ? item : d))
+          : [item, ...old],
+      );
+      setEditing(null);
+      setDetail(null);
+      setNotice(value.id ? "Demanda atualizada." : "Demanda criada.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function remove() {
+    if (!detail || !window.confirm("Excluir esta demanda e seu histórico?"))
+      return;
+    try {
+      if (connected) await api(`/demands/${detail.id}`, "DELETE");
+      setDemands((old) => old.filter((d) => d.id !== detail.id));
+      setDetail(null);
+      setNotice("Demanda excluída.");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+  function move(d: Demand, stage: string) {
+    if (stage === "acompanhar" && !d.return_date) {
+      setEditing({ ...d, stage });
+      return;
+    }
+    void save({ ...d, stage });
+  }
+  function emailDemand(id: number) {
+    const e = emails.find((e) => e.id === id)!;
+    setEditing({
+      ...initial(),
+      front_id: e.front,
+      title: e.subject,
+      channel: "email",
+      contact: e.from,
+      summary: e.body,
+    });
+  }
+  function ask(text: string) {
+    if (!text.trim()) return;
+    setMessages((old) => [
+      ...old,
+      { role: "user", text },
+      {
+        role: "assistant",
+        text: "O chat com IA será conectado na Fase 6. Por enquanto, você pode consultar a fila de demandas e os prazos diretamente no painel. Nenhuma mensagem foi enviada ao modelo.",
+      },
+    ]);
+    setQuestion("");
+  }
+  const demoBadge = <span className="badge">Demonstração</span>;
+  const panel = (
+    title: string,
+    children: React.ReactNode,
+    action?: React.ReactNode,
+  ) => (
+    <section className="panel" key={title}>
+      <div className="panel-heading">
+        <h2>{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+  const taskRows = (items: Demand[]) => (
+    <div className="tasks">
+      {items.length ? (
+        items.map((d) => (
+          <button className="task" key={d.id} onClick={() => setDetail(d)}>
+            <span className="task-icon">
+              <Square size={17} />
+            </span>
+            <span className="task-title">
+              <strong>{d.title}</strong>
+              <small>
+                Frente {String(d.front_id).padStart(2, "0")} ·{" "}
+                {d.channel === "manual" ? "Criada por você" : d.channel}
+              </small>
+            </span>
+            <span
+              className={`due ${d.due && d.due < today() ? "overdue" : ""}`}
+            >
+              {dateLabel(d.due || d.return_date)}
+            </span>
+            <span className={`tag ${d.priority === "alta" ? "priority" : ""}`}>
+              {d.priority === "alta"
+                ? "Prioridade"
+                : stages[d.stage as keyof typeof stages]}
+            </span>
+            <ChevronRight size={16} />
+          </button>
+        ))
+      ) : (
+        <Empty text="Tudo em dia por aqui." />
+      )}
+    </div>
+  );
+  const sitesBlock = (
+    <div className="site-list">
+      {showSamples ? (
+        [1, 2, 3, 4]
+          .filter((n) => !front || front === n)
+          .map((n) => (
+            <div className="site-row" key={n}>
+              <Globe size={17} />
+              <strong>frente0{n}.example</strong>
+              <span className="status-dot" /> <span>Online</span>
+              <small>{180 + n * 17} ms</small>
+            </div>
+          ))
+      ) : (
+        <Empty text="Nenhum site conectado. Monitoramento disponível na Fase 4." />
+      )}
+    </div>
+  );
+  const socialBlock = (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Perfil</th>
+            <th>Seguidores</th>
+            <th>Variação 7 dias</th>
+            <th>Mensagens</th>
+          </tr>
+        </thead>
+        <tbody>
+          {showSamples &&
+            [2480, 1820, 965, 3210].map(
+              (followers, i) =>
+                (!front || front === i + 1) && (
+                  <tr key={i}>
+                    <td>
+                      <strong>@frente0{i + 1}</strong>
+                    </td>
+                    <td>{followers.toLocaleString("pt-BR")}</td>
+                    <td>
+                      +{[124, 68, 32, 146][i]}{" "}
+                      <span className="sparkline">▁▂▂▃▂▄▅▆</span>
+                    </td>
+                    <td>{[3, 2, 1, 1][i]} pendentes</td>
+                  </tr>
+                ),
+            )}
+        </tbody>
+      </table>
+      {!showSamples && (
+        <Empty text="Conectores oficiais serão disponibilizados na Fase 7." />
+      )}
+    </div>
+  );
+  const assistant = (
+    <div className="assistant-body">
+      <div className="assistant-greeting">
+        <div className="ai-mark">
+          <Sparkles size={21} />
+        </div>
+        <h2>Um pouco mais de clareza.</h2>
+        <p>
+          Consulte suas demandas e organize os próximos passos com contexto.
+        </p>
+        <span className="badge">Chat disponível na Fase 6</span>
+      </div>
+      <div className="chat-messages">
+        {messages.map((m, i) => (
+          <div key={i} className={`message ${m.role}`}>
+            {m.text}
+          </div>
+        ))}
+      </div>
+      <div className="chat-bottom">
+        <div className="quick-prompts">
+          {["O que priorizar hoje?", "Resumir meus e-mails"].map((q) => (
+            <button key={q} onClick={() => ask(q)}>
+              {q}
+              <ArrowUpRight size={14} />
+            </button>
+          ))}
+        </div>
+        <form
+          className="chat-input"
+          onSubmit={(e) => {
+            e.preventDefault();
+            ask(question);
+          }}
+        >
+          <textarea
+            aria-label="Mensagem para o assistente"
+            placeholder="Converse com seu assistente…"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+          />
+          <button className="icon-button primary" aria-label="Enviar mensagem">
+            <ArrowRight size={18} />
+          </button>
+        </form>
+        <small>IA local · sugestões precisam de revisão</small>
+      </div>
+    </div>
+  );
+  const titles: Record<string, string> = {
+    "Visão geral": "Tudo sob controle.",
+    Demandas: "Cada oportunidade, um próximo passo.",
+    "E-mails": "Sua caixa de entrada, organizada.",
+    Sites: "Sua presença sempre à vista.",
+    "Redes sociais": "Acompanhe suas conexões.",
+    Arquivos: "Tudo no lugar certo.",
+    Assistente: "Pense junto com seu assistente.",
+    Configurações: "Do seu jeito.",
+  };
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <a
+          className="brand"
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            setPage("Visão geral");
+          }}
+        >
+          <span className="brand-symbol">▰</span> MONITOR
+          <span className="brand-dot" />
+        </a>
+        <span className="nav-label">ESPAÇO DE TRABALHO</span>
+        <nav>
+          {nav.map(([label, Icon]) => (
+            <button
+              key={label}
+              aria-label={label}
+              title={label}
+              className={page === label ? "active" : ""}
+              onClick={() => {
+                setPage(label);
+                setQuery("");
+              }}
+            >
+              <Icon size={19} />
+              <span>{label}</span>
+              {label === "Demandas" && (
+                <span className="nav-count">
+                  {demands.filter((d) => !closed(d)).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <div className="local-state">
+            <span className="status-dot" />
+            <span>
+              {connected ? "Backend local conectado" : "Prévia da interface"}
+            </span>
+          </div>
+          <div className="profile">
+            <span className="avatar">M</span>
+            <div>
+              <strong>Marcos</strong>
+              <small>Seu espaço pessoal</small>
+            </div>
+            <SlidersHorizontal size={17} />
+          </div>
+        </div>
+      </aside>
+      <main
+        className={`main ${page === "Visão geral" ? "with-assistant" : ""}`}
+      >
+        <div className="topbar">
+          <span>SEU CENTRO DE OPERAÇÃO</span>
+          <div>
+            <span className="badge">
+              {preview
+                ? "Demonstração · dados fictícios"
+                : "Versão de desenvolvimento"}
+            </span>
+            <Bell size={18} />
+          </div>
+        </div>
+        <header className="page-header">
+          <div>
+            <div className="eyebrow">
+              {new Date().toLocaleDateString("pt-BR", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
+            </div>
+            <h1>{titles[page]}</h1>
+            <p>
+              {page === "Visão geral"
+                ? "Menos ruído. Mais foco no que precisa de você."
+                : page}
+            </p>
+          </div>
+          <button
+            className="primary"
+            onClick={() => setEditing({ ...initial(), front_id: front || 1 })}
+            disabled={!connected && !preview}
+          >
+            <Plus size={17} />
+            Nova demanda
+          </button>
+        </header>
+        {error && (
+          <div role="alert" className="error-banner">
+            {error}
+            <button onClick={() => setError("")} aria-label="Fechar erro">
+              <X size={16} />
+            </button>
+          </div>
+        )}
+        {notice && (
+          <div role="status" className="notice">
+            {notice}
+          </div>
+        )}
+        {connected &&
+          ollama &&
+          page === "Visão geral" &&
+          (!ollama.available || !ollama.models.includes(model)) && (
+            <div className="info-strip">
+              <strong>Prepare sua IA local.</strong>{" "}
+              {ollama.available
+                ? "O modelo escolhido ainda não está instalado."
+                : "O Ollama não foi detectado neste computador."}{" "}
+              As demandas continuam funcionando normalmente.
+              <button
+                className="text-button"
+                onClick={() => setPage("Configurações")}
+              >
+                Configurar IA <ArrowRight size={15} />
+              </button>
+            </div>
+          )}
+        {!connected && !preview && (
+          <section className="welcome panel">
+            <Sparkles size={28} />
+            <h2>{busy ? "Iniciando sua central…" : "Bem-vindo ao Monitor"}</h2>
+            <p>
+              O aplicativo desktop mantém suas demandas no banco local. Você
+              também pode explorar uma demonstração sem salvar dados.
+            </p>
+            <div className="button-row">
+              <button
+                className="primary"
+                onClick={() => void load()}
+                disabled={busy}
+              >
+                Tentar conectar
+              </button>
+              <button onClick={demo}>Explorar demonstração</button>
+            </div>
+          </section>
+        )}
+        <div className="filter-row">
+          <div className="front-filters">
+            {[0, 1, 2, 3, 4].map((n) => (
+              <button
+                key={n}
+                aria-pressed={front === n}
+                className={front === n ? "selected" : ""}
+                onClick={() => setFront(n)}
+              >
+                {n === 0 ? "Todas as frentes" : `Frente 0${n}`}
+              </button>
+            ))}
+          </div>
+          {["Visão geral", "Demandas", "Arquivos"].includes(page) && (
+            <label className="search">
+              <Search size={16} />
+              <input
+                aria-label="Buscar"
+                placeholder={
+                  page === "Arquivos" ? "Buscar arquivo…" : "Buscar demanda…"
+                }
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+          )}
+        </div>
+        {page === "Visão geral" && (
+          <>
+            <div className="metrics">
+              {[
+                [
+                  "Demandas abertas",
+                  open.length,
+                  `${due.length} precisam de atenção`,
+                  Workflow,
+                ],
+                [
+                  "E-mails recebidos",
+                  showSamples ? sampleEmails.length : "—",
+                  showSamples
+                    ? "Exemplos de mensagens"
+                    : "Nenhuma conta conectada",
+                  Mail,
+                ],
+                [
+                  "Sites disponíveis",
+                  showSamples ? (front ? "1 / 1" : "4 / 4") : "—",
+                  "Monitoramento demonstrativo",
+                  Globe,
+                ],
+                [
+                  "Mensagens pendentes",
+                  showSamples ? (front ? [3, 2, 1, 1][front - 1] : 7) : "—",
+                  "Integrações não conectadas",
+                  MessageSquare,
+                ],
+              ].map(([label, value, caption, Icon]) => {
+                const MetricIcon = Icon as typeof Mail;
+                return (
+                  <div className="metric" key={String(label)}>
+                    <div>
+                      <span>{String(label)}</span>
+                      <MetricIcon size={19} />
+                    </div>
+                    <strong>{String(value)}</strong>
+                    <small>{String(caption)}</small>
+                  </div>
+                );
+              })}
+            </div>
+            {panel(
+              "Sua fila de trabalho",
+              <>
+                <div className="tabs">
+                  {["Hoje", "Todas", "Sugestões da IA"].map((t) => (
+                    <button
+                      key={t}
+                      className={tab === t ? "selected" : ""}
+                      onClick={() => setTab(t)}
+                    >
+                      {t}
+                      <span>
+                        {t === "Hoje"
+                          ? due.length
+                          : t === "Todas"
+                            ? open.length
+                            : 0}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {tab === "Sugestões da IA" ? (
+                  <Empty text="As sugestões de e-mail estarão disponíveis na Fase 2." />
+                ) : (
+                  taskRows(tab === "Hoje" ? due : open)
+                )}
+              </>,
+              <button
+                className="text-button"
+                onClick={() => setPage("Demandas")}
+              >
+                Ver todas
+                <ArrowUpRight size={15} />
+              </button>,
+            )}
+            <div className="two-col">
+              {panel(
+                "E-mails → demandas",
+                <>
+                  {showSamples ? (
+                    sampleEmails.map((e) => (
+                      <div className="email-row" key={e.id}>
+                        <span className="soft-icon">
+                          <Mail size={18} />
+                        </span>
+                        <div>
+                          <strong>{e.subject}</strong>
+                          <small>
+                            Frente 0{e.front} · {e.from}
+                          </small>
+                        </div>
+                        <button
+                          className="small-button"
+                          onClick={() => emailDemand(e.id)}
+                        >
+                          <Plus size={14} />
+                          Demanda
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <Empty text="Conecte suas contas na próxima fase." />
+                  )}
+                  <button
+                    className="panel-footer"
+                    onClick={() => setPage("E-mails")}
+                  >
+                    Abrir caixa unificada
+                    <ArrowRight size={15} />
+                  </button>
+                </>,
+                demoBadge,
+              )}
+              {panel(
+                "Saúde dos sites",
+                <>
+                  {sitesBlock}
+                  <button
+                    className="panel-footer"
+                    onClick={() => setPage("Sites")}
+                  >
+                    Ver monitoramento
+                    <ArrowRight size={15} />
+                  </button>
+                </>,
+                demoBadge,
+              )}
+            </div>
+            {panel("Redes sociais", socialBlock, demoBadge)}
+            <div className="bottom-note">
+              <span className="status-dot" /> Seus dados ficam com você.
+              Integrações de demonstração não consultam contas reais.
+            </div>
+          </>
+        )}
+        {page === "Demandas" && (
+          <>
+            <div className="section-toolbar">
+              <p>
+                {visible.length} demandas · arraste para mudar de etapa ou abra
+                um cartão
+              </p>
+              <span className="badge">
+                Persistência {connected ? "local" : "temporária"}
+              </span>
+            </div>
+            <div className="kanban">
+              {Object.entries(stages).map(([stage, label]) => (
+                <section
+                  className="kanban-column"
+                  key={stage}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const d = demands.find(
+                      (d) =>
+                        d.id === Number(e.dataTransfer.getData("text/plain")),
+                    );
+                    if (d) move(d, stage);
+                  }}
+                >
+                  <h2>
+                    <span>{label}</span>
+                    <small>
+                      {visible.filter((d) => d.stage === stage).length}
+                    </small>
+                  </h2>
+                  {visible
+                    .filter((d) => d.stage === stage)
+                    .map((d) => (
+                      <button
+                        className="kanban-card"
+                        key={d.id}
+                        draggable
+                        onDragStart={(e) =>
+                          e.dataTransfer.setData("text/plain", String(d.id))
+                        }
+                        onClick={() => setDetail(d)}
+                      >
+                        <span className="eyebrow">FRENTE 0{d.front_id}</span>
+                        <strong>{d.title}</strong>
+                        <p>{d.next_action || "Defina a próxima ação"}</p>
+                        <footer>
+                          <span>{dateLabel(d.due || d.return_date)}</span>
+                          {d.priority === "alta" && (
+                            <span className="tag priority">Alta</span>
+                          )}
+                        </footer>
+                      </button>
+                    ))}
+                  <button
+                    className="add-card"
+                    onClick={() =>
+                      setEditing({ ...initial(), stage, front_id: front || 1 })
+                    }
+                  >
+                    <Plus size={15} />
+                    Adicionar
+                  </button>
+                </section>
+              ))}
+            </div>
+          </>
+        )}
+        {page === "E-mails" && (
+          <>
+            {panel(
+              "Caixa unificada",
+              <>
+                <div className="info-strip">
+                  Mensagens fictícias. A coleta IMAP será implementada na Fase
+                  2; nenhuma conta está conectada.
+                </div>
+                <div className="tabs">
+                  {[
+                    "Todos",
+                    "Importantes",
+                    "Precisam de ação",
+                    "Revisar",
+                    "Informativos",
+                  ].map((t) => (
+                    <button
+                      className={emailTab === t ? "selected" : ""}
+                      key={t}
+                      onClick={() => setEmailTab(t)}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <div className="mail-layout">
+                  <div className="mail-list">
+                    {showSamples ? (
+                      sampleEmails
+                        .filter(
+                          (e) =>
+                            emailTab === "Todos" ||
+                            e.importance === emailTab ||
+                            (emailTab === "Importantes" &&
+                              e.importance === "Precisam de ação"),
+                        )
+                        .map((e) => (
+                          <button
+                            key={e.id}
+                            onClick={() => setEmailId(e.id)}
+                            className={emailId === e.id ? "selected" : ""}
+                          >
+                            <small>Frente 0{e.front}</small>
+                            <strong>{e.from}</strong>
+                            <span>{e.subject}</span>
+                            <span className="tag">{e.importance}</span>
+                          </button>
+                        ))
+                    ) : (
+                      <Empty text="Nenhum e-mail recebido." />
+                    )}
+                  </div>
+                  <div className="mail-reader">
+                    {showSamples &&
+                      (() => {
+                        const e =
+                          sampleEmails.find((e) => e.id === emailId) ||
+                          sampleEmails[0];
+                        return e ? (
+                          <>
+                            <span className="eyebrow">
+                              MENSAGEM DE DEMONSTRAÇÃO
+                            </span>
+                            <h2>{e.subject}</h2>
+                            <p className="muted">
+                              {e.from} · Frente 0{e.front}
+                            </p>
+                            <p>{e.body}</p>
+                            <div className="analysis">
+                              <h3>
+                                <Sparkles size={17} />
+                                Análise ilustrativa
+                              </h3>
+                              <p>
+                                {e.category} · {e.importance}
+                              </p>
+                              <p>
+                                Classificação de exemplo. Nenhum modelo analisou
+                                esta mensagem.
+                              </p>
+                            </div>
+                            <button
+                              className="primary"
+                              onClick={() => emailDemand(e.id)}
+                            >
+                              <Plus size={16} />
+                              Criar demanda
+                            </button>
+                          </>
+                        ) : null;
+                      })()}
+                  </div>
+                </div>
+              </>,
+            )}
+          </>
+        )}
+        {page === "Sites" && (
+          <>
+            <div className="info-strip">
+              Dados demonstrativos. Verificações HTTP, SSL, formulários e
+              monitor externo chegam na Fase 4.
+            </div>
+            <div className="two-col">
+              {showSamples ? (
+                [1, 2, 3, 4]
+                  .filter((n) => !front || front === n)
+                  .map((n) =>
+                    panel(
+                      `frente0${n}.example`,
+                      <div className="site-detail">
+                        <div className="site-detail-status">
+                          <span className="status-dot" />
+                          Online<span className="muted">Exemplo</span>
+                        </div>
+                        <div className="uptime-bars">
+                          {Array.from({ length: 30 }, (_, i) => (
+                            <span key={i} />
+                          ))}
+                        </div>
+                        <div className="split">
+                          <span>Últimos 30 dias</span>
+                          <strong>99,98%</strong>
+                        </div>
+                        <div className="site-stats">
+                          <div>
+                            <small>RESPOSTA</small>
+                            <strong>{180 + n * 17} ms</strong>
+                          </div>
+                          <div>
+                            <small>SSL</small>
+                            <strong>82 dias</strong>
+                          </div>
+                          <div>
+                            <small>FORMULÁRIO</small>
+                            <strong>Exemplo OK</strong>
+                          </div>
+                        </div>
+                      </div>,
+                      demoBadge,
+                    ),
+                  )
+              ) : (
+                <Empty text="Nenhum site configurado." />
+              )}
+            </div>
+            {panel(
+              "Incidentes",
+              <Empty text="Nenhum incidente real registrado." />,
+            )}
+          </>
+        )}
+        {page === "Redes sociais" && (
+          <>
+            <div className="info-strip">
+              Instagram e WhatsApp ainda não conectados. Os exemplos abaixo não
+              representam contas reais.
+            </div>
+            <div className="section-toolbar">
+              <h2>Visão dos perfis</h2>
+              <select
+                aria-label="Período"
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+              >
+                {["7 dias", "30 dias", "90 dias"].map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+            {panel(`Indicadores · ${period}`, socialBlock, demoBadge)}
+            {panel(
+              "Mensagens sem resposta",
+              showSamples ? (
+                <>
+                  <div className="email-row">
+                    <span className="soft-icon">
+                      <MessageSquare size={19} />
+                    </span>
+                    <div>
+                      <strong>
+                        Olá! Gostaria de saber mais sobre o serviço.
+                      </strong>
+                      <small>@contato_exemplo · Frente 01</small>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setEditing({
+                          ...initial(),
+                          title: "Responder interesse no serviço",
+                          channel: "instagram",
+                        })
+                      }
+                    >
+                      + Demanda
+                    </button>
+                  </div>
+                  <p className="muted inset">
+                    Mensagem ilustrativa. Nenhuma conversa foi importada.
+                  </p>
+                </>
+              ) : (
+                <Empty text="Nenhuma mensagem importada." />
+              ),
+              demoBadge,
+            )}
+          </>
+        )}
+        {page === "Arquivos" && (
+          <>
+            {panel(
+              "Seu acervo",
+              <>
+                <div className="info-strip">
+                  Indexação e recebimento de arquivos disponíveis na Fase 5.
+                  Nenhuma pasta foi acessada.
+                </div>
+                <div className="section-toolbar inset">
+                  <p>Catálogo de demonstração</p>
+                  <select
+                    aria-label="Categoria do arquivo"
+                    value={fileCategory}
+                    onChange={(e) => setFileCategory(e.target.value)}
+                  >
+                    {["Todas", "Proposta", "Briefing", "Material"].map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Arquivo</th>
+                        <th>Frente</th>
+                        <th>Categoria</th>
+                        <th>Tamanho</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {showSamples &&
+                        files
+                          .filter(
+                            (f) =>
+                              (!front || f.front === front) &&
+                              (fileCategory === "Todas" ||
+                                f.category === fileCategory) &&
+                              f.name
+                                .toLowerCase()
+                                .includes(query.toLowerCase()),
+                          )
+                          .map((f) => (
+                            <tr key={f.name}>
+                              <td>
+                                <FileText size={17} />
+                                {f.name}
+                              </td>
+                              <td>Frente 0{f.front}</td>
+                              <td>{f.category}</td>
+                              <td>{f.size}</td>
+                            </tr>
+                          ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>,
+            )}
+          </>
+        )}
+        {page === "Assistente" && (
+          <section className="panel full-chat">{assistant}</section>
+        )}
+        {page === "Configurações" && (
+          <div className="settings-grid">
+            {panel(
+              "IA local",
+              <div className="settings-content">
+                <p>O processamento será feito no seu computador pelo Ollama.</p>
+                <div className="connection-status">
+                  <span
+                    className={`status-dot ${ollama?.available ? "" : "inactive"}`}
+                  />
+                  {ollama?.available
+                    ? "Ollama disponível"
+                    : "Ollama não detectado"}
+                </div>
+                <button
+                  onClick={() => {
+                    if (connected)
+                      api<typeof ollama>("/ollama")
+                        .then(setOllama)
+                        .catch((e) => setError(e.message));
+                    else setNotice("Disponível no aplicativo desktop.");
+                  }}
+                >
+                  Verificar novamente
+                </button>
+                <label>
+                  Modelo
+                  <input
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                  />
+                </label>
+                <div className="button-row">
+                  <button
+                    className="primary"
+                    disabled={!connected}
+                    onClick={() =>
+                      api("/settings", "PUT", { model })
+                        .then(() => setNotice("Modelo salvo."))
+                        .catch((e) => setError(e.message))
+                    }
+                  >
+                    Salvar modelo
+                  </button>
+                  <button
+                    disabled={!connected || !ollama?.available || pulling}
+                    onClick={async () => {
+                      setPulling(true);
+                      try {
+                        await pullModel(model, setDownload);
+                        setNotice("Download concluído.");
+                        setOllama(await api("/ollama"));
+                      } catch (e) {
+                        setError((e as Error).message);
+                      } finally {
+                        setPulling(false);
+                      }
+                    }}
+                  >
+                    <ArrowDownToLine size={16} />
+                    {pulling ? "Baixando…" : "Baixar modelo"}
+                  </button>
+                </div>
+                {download && <p role="status">{download}</p>}
+                <button
+                  className="text-button"
+                  onClick={() => {
+                    if (isTauri())
+                      void openUrl("https://ollama.com/download/windows");
+                    else
+                      window.open(
+                        "https://ollama.com/download/windows",
+                        "_blank",
+                        "noopener",
+                      );
+                  }}
+                >
+                  Instalar Ollama pelo site oficial
+                  <ArrowUpRight size={15} />
+                </button>
+                <small>
+                  O modelo é configurável. Desempenho e memória precisam ser
+                  medidos neste PC.
+                </small>
+              </div>,
+            )}
+            {panel(
+              "Aplicativo",
+              <div className="settings-content">
+                <h3>Inicialização</h3>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={autostart}
+                    disabled={!isTauri()}
+                    onChange={async (e) => {
+                      try {
+                        const module =
+                          await import("@tauri-apps/plugin-autostart");
+                        if (e.target.checked) await module.enable();
+                        else await module.disable();
+                        setAutostart(e.target.checked);
+                      } catch {
+                        setError("Não foi possível alterar a inicialização.");
+                      }
+                    }}
+                  />
+                  Iniciar com o Windows
+                </label>
+                <p>
+                  Fechar a janela mantém o Monitor na bandeja. Use “Sair” no
+                  menu para encerrar.
+                </p>
+                <hr />
+                <h3>Contas e integrações</h3>
+                {[
+                  "E-mail · Fase 2",
+                  "Sites e formulários · Fase 4",
+                  "OneDrive · Fase 5",
+                  "Instagram e WhatsApp · Fase 7",
+                ].map((i) => (
+                  <div className="integration-row" key={i}>
+                    <span>{i}</span>
+                    <span className="badge">Não conectado</span>
+                  </div>
+                ))}
+                <p>
+                  Credenciais serão armazenadas no gerenciador do Windows, nunca
+                  enviadas à IA.
+                </p>
+              </div>,
+            )}
+          </div>
+        )}
+      </main>
+      {page === "Visão geral" && (
+        <aside className="assistant-sidebar">
+          <header>
+            <div>
+              <Sparkles size={19} />
+              <strong>Assistente</strong>
+            </div>
+            <span className="badge">LOCAL</span>
+          </header>
+          {assistant}
+        </aside>
+      )}
+      {editing && (
+        <DemandModal
+          value={editing}
+          saving={saving}
+          error={error}
+          onClose={() => setEditing(null)}
+          onSave={save}
+        />
+      )}
+      {detail && (
+        <div className="modal-overlay" onClick={() => setDetail(null)}>
+          <section
+            className="detail-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Detalhes da demanda"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="close-button"
+              aria-label="Fechar detalhes"
+              onClick={() => setDetail(null)}
+            >
+              <X size={20} />
+            </button>
+            <span className="eyebrow">
+              FRENTE 0{detail.front_id} · {detail.channel}
+            </span>
+            <h2>{detail.title}</h2>
+            <span className="tag">
+              {stages[detail.stage as keyof typeof stages]}
+            </span>
+            <dl>
+              <dt>Contato</dt>
+              <dd>{detail.contact || "Não informado"}</dd>
+              <dt>Prazo</dt>
+              <dd>{dateLabel(detail.due)}</dd>
+              <dt>Data de retorno</dt>
+              <dd>{dateLabel(detail.return_date)}</dd>
+              <dt>Próxima ação</dt>
+              <dd>{detail.next_action || "Ainda não definida"}</dd>
+              <dt>Resumo</dt>
+              <dd>{detail.summary || "Sem resumo"}</dd>
+            </dl>
+            <div className="button-row">
+              <button
+                className="primary"
+                onClick={() => {
+                  setEditing(detail);
+                  setDetail(null);
+                }}
+              >
+                Editar demanda
+              </button>
+              <button
+                disabled={closed(detail)}
+                onClick={() => {
+                  const order = Object.keys(stages);
+                  move(
+                    detail,
+                    order[
+                      Math.min(
+                        order.indexOf(detail.stage) + 1,
+                        order.length - 1,
+                      )
+                    ],
+                  );
+                }}
+              >
+                Próxima etapa
+                <ArrowRight size={15} />
+              </button>
+            </div>
+            <h3>Histórico</h3>
+            {history.length ? (
+              history.map((event) => (
+                <p className="history-event" key={event.id}>
+                  {event.description}
+                  <small>
+                    {new Date(event.created_at).toLocaleString("pt-BR")}
+                  </small>
+                </p>
+              ))
+            ) : (
+              <p className="muted">
+                {connected
+                  ? "Nenhum evento anterior."
+                  : "Histórico persistente disponível no aplicativo desktop."}
+              </p>
+            )}
+            <button className="danger-button" onClick={() => void remove()}>
+              Excluir demanda
+            </button>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function Empty({text}:{text:string}){return <div className="empty"><Check size={22}/><p>{text}</p></div>;}
-export function DemandModal({value,saving,onClose,onSave}:{value:Partial<Demand>;saving:boolean;onClose:()=>void;onSave:(d:Partial<Demand>)=>void}){
- const [form,setForm]=useState({...initial(),...value});const ref=useRef<HTMLDialogElement>(null);
- useEffect(()=>{ref.current?.showModal();return()=>ref.current?.close();},[]);
- function field(key:keyof Demand,value:string|null){setForm(old=>({...old,[key]:value}));}
- return <dialog ref={ref} className="demand-dialog" onCancel={onClose}><form onSubmit={e=>{e.preventDefault();onSave(form);}}><header><div><span className="eyebrow">ORGANIZE O PRÓXIMO PASSO</span><h2>{value.id?'Editar demanda':'Nova demanda'}</h2></div><button type="button" className="icon-button" onClick={onClose} aria-label="Fechar formulário"><X size={20}/></button></header><label>Título<input autoFocus required maxLength={200} value={form.title} onChange={e=>field('title',e.target.value)} placeholder="O que precisa ser feito?"/></label><div className="form-grid"><label>Frente<select aria-label="Frente" value={form.front_id} onChange={e=>setForm({...form,front_id:Number(e.target.value)})}>{[1,2,3,4].map(n=><option key={n} value={n}>Frente 0{n}</option>)}</select></label><label>Prioridade<select aria-label="Prioridade" value={form.priority} onChange={e=>field('priority',e.target.value)}><option value="normal">Normal</option><option value="alta">Alta</option></select></label><label>Etapa<select aria-label="Etapa" value={form.stage} onChange={e=>field('stage',e.target.value)}>{Object.entries(stages).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label><label>Prazo<input type="date" value={form.due||''} onChange={e=>field('due',e.target.value||null)}/></label></div><label>Contato<input value={form.contact} onChange={e=>field('contact',e.target.value)} maxLength={200}/></label><label>Próxima ação<input value={form.next_action} onChange={e=>field('next_action',e.target.value)} maxLength={2000}/></label><label>Data de retorno {form.stage==='acompanhar'&&'· obrigatória'}<input type="date" required={form.stage==='acompanhar'} value={form.return_date||''} onChange={e=>field('return_date',e.target.value||null)}/></label><label>Resumo<textarea value={form.summary} onChange={e=>field('summary',e.target.value)} maxLength={6000}/></label><footer><button type="button" onClick={onClose}>Cancelar</button><button className="primary" disabled={saving}>{saving?'Salvando…':'Salvar demanda'}</button></footer></form></dialog>;
+function Empty({ text }: { text: string }) {
+  return (
+    <div className="empty">
+      <Check size={22} />
+      <p>{text}</p>
+    </div>
+  );
+}
+export function DemandModal({
+  value,
+  saving,
+  error,
+  onClose,
+  onSave,
+}: {
+  value: Partial<Demand>;
+  saving: boolean;
+  error?: string;
+  onClose: () => void;
+  onSave: (d: Partial<Demand>) => void;
+}) {
+  const [form, setForm] = useState({ ...initial(), ...value });
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    ref.current?.showModal();
+    return () => ref.current?.close();
+  }, []);
+  function field(key: keyof Demand, value: string | null) {
+    setForm((old) => ({ ...old, [key]: value }));
+  }
+  return (
+    <dialog ref={ref} className="demand-dialog" onCancel={onClose}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave(form);
+        }}
+      >
+        <header>
+          <div>
+            <span className="eyebrow">ORGANIZE O PRÓXIMO PASSO</span>
+            <h2>{value.id ? "Editar demanda" : "Nova demanda"}</h2>
+          </div>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label="Fechar formulário"
+          >
+            <X size={20} />
+          </button>
+        </header>
+        {error && (
+          <div role="alert" className="error-banner">
+            {error}
+          </div>
+        )}
+        <label>
+          Título
+          <input
+            autoFocus
+            required
+            maxLength={200}
+            value={form.title}
+            onChange={(e) => field("title", e.target.value)}
+            placeholder="O que precisa ser feito?"
+          />
+        </label>
+        <div className="form-grid">
+          <label>
+            Frente
+            <select
+              aria-label="Frente"
+              value={form.front_id}
+              onChange={(e) =>
+                setForm({ ...form, front_id: Number(e.target.value) })
+              }
+            >
+              {[1, 2, 3, 4].map((n) => (
+                <option key={n} value={n}>
+                  Frente 0{n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Prioridade
+            <select
+              aria-label="Prioridade"
+              value={form.priority}
+              onChange={(e) => field("priority", e.target.value)}
+            >
+              <option value="normal">Normal</option>
+              <option value="alta">Alta</option>
+            </select>
+          </label>
+          <label>
+            Etapa
+            <select
+              aria-label="Etapa"
+              value={form.stage}
+              onChange={(e) => field("stage", e.target.value)}
+            >
+              {Object.entries(stages).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Prazo
+            <input
+              type="date"
+              value={form.due || ""}
+              onChange={(e) => field("due", e.target.value || null)}
+            />
+          </label>
+        </div>
+        <label>
+          Contato
+          <input
+            value={form.contact}
+            onChange={(e) => field("contact", e.target.value)}
+            maxLength={200}
+          />
+        </label>
+        <label>
+          Próxima ação
+          <input
+            value={form.next_action}
+            onChange={(e) => field("next_action", e.target.value)}
+            maxLength={2000}
+          />
+        </label>
+        <label>
+          Data de retorno {form.stage === "acompanhar" && "· obrigatória"}
+          <input
+            type="date"
+            required={form.stage === "acompanhar"}
+            value={form.return_date || ""}
+            onChange={(e) => field("return_date", e.target.value || null)}
+          />
+        </label>
+        <label>
+          Resumo
+          <textarea
+            value={form.summary}
+            onChange={(e) => field("summary", e.target.value)}
+            maxLength={6000}
+          />
+        </label>
+        <footer>
+          <button type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          <button className="primary" disabled={saving}>
+            {saving ? "Salvando…" : "Salvar demanda"}
+          </button>
+        </footer>
+      </form>
+    </dialog>
+  );
 }

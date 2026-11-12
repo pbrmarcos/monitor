@@ -103,7 +103,7 @@ fn main() {
                 _ => {},
             }).build(app)?;
             let marker = app.path().app_local_data_dir()?.join("autostart-configured");
-            if !marker.exists() {
+            if !std::env::args().any(|arg| arg == "--no-autostart") && !marker.exists() {
                 if app.autolaunch().enable().is_ok() {
                     if let Some(parent) = marker.parent() { std::fs::create_dir_all(parent)?; }
                     std::fs::write(marker, "1")?;

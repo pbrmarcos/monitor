@@ -68,6 +68,8 @@ npm run build
 
 O script gera o sidecar com PyInstaller, testa o executável e compila os instaladores NSIS/MSI em `dist/`. O workflow Windows desktop faz o mesmo no GitHub Actions. Os instaladores desta etapa não têm assinatura Authenticode nem atualizador ativo.
 
+Para validação sem ativar inicialização automática, execute o binário com `--no-autostart`. O instalador MSI usa a versão interna numérica `0.1.0.1`, correspondente à versão alpha do produto.
+
 Ollama é separado do instalador. Nas configurações, verifique a disponibilidade, ajuste o modelo e solicite seu download. O padrão do briefing é configurável e precisa ser validado no hardware. Nenhum chat ou análise real de e-mail está ativo nesta fase. Credenciais IMAP virão na Fase 2; backup e catálogo do OneDrive na Fase 5.
 
 ## Contribuir
