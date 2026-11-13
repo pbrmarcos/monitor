@@ -190,8 +190,10 @@ export function Overview({ m }: { m: Monitor }) {
         {metrics.map(({ label, value, caption, icon: Icon }) => (
           <div className="metric" key={label}>
             <div>
+              <span className="metric-icon">
+                <Icon size={18} aria-hidden />
+              </span>
               <span>{label}</span>
-              <Icon size={18} aria-hidden />
             </div>
             <strong>{value}</strong>
             <small>{caption}</small>

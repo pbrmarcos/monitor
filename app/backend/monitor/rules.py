@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from email.utils import parseaddr
 
-from .deadlines import find_deadline, fold
+from .deadlines import find_deadline, fold, parse_expression
 
 RANK = {'info': 0, 'revisar': 1, 'importante': 2, 'acao': 3}
 BUDGET_SUBJECT = re.compile(r'\b(orcamento|cotacao)\b')
@@ -60,13 +60,18 @@ def decide(sender: str, subject: str, body: str, bulk: bool, ai: dict | None, co
     ambiguous = bool(found and found.ambiguous)
     if found:
         result.update(prazo_texto=found.text, prazo_iso=found.iso, trecho_prazo=found.snippet)
-    elif result.get('prazo_texto') or result.get('prazo_iso'):
+    elif result.get('prazo_texto') or result.get('prazo_iso') or result.get('trecho_prazo'):
         # Prazo vindo só da IA precisa de data e de um trecho literal da mensagem.
         excerpt = result.get('trecho_prazo')
         literal = bool(excerpt) and _squash(excerpt) in _squash(text)
         if not literal:
             result['trecho_prazo'] = None
-        if not (result.get('prazo_iso') and literal):
+        elif not result.get('prazo_iso'):
+            # A IA citou o trecho mas não devolveu a data: lê a data escrita no próprio trecho.
+            parsed = parse_expression(excerpt, context.today)
+            if parsed and parsed.iso:
+                result.update(prazo_iso=parsed.iso, prazo_texto=result.get('prazo_texto') or parsed.text)
+        if (result.get('prazo_texto') or result.get('prazo_iso')) and not (result.get('prazo_iso') and literal):
             result['prazo_iso'] = None
             ambiguous = True
 

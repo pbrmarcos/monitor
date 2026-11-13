@@ -24,7 +24,7 @@ import type { Monitor } from "../store";
 import { WritingStyle } from "./Reply";
 import { VoicePanel } from "./Voice";
 import { Personalization, Updates } from "./Personalization";
-import { Callout, frontLabel, Panel, soon } from "../ui";
+import { Callout, frontLabel, Panel, soon, Tabs } from "../ui";
 
 const OLLAMA_URL = "https://ollama.com/download/windows";
 const emptyAccount = (): AccountInput => ({
@@ -36,8 +36,18 @@ const emptyAccount = (): AccountInput => ({
   password: "",
 });
 
+type SettingsCategory =
+  | "Todas"
+  | "Arquivos e Contas"
+  | "IA e Voz"
+  | "Agenda e Regras"
+  | "Personalização";
+
 export function SettingsPage({ m }: { m: Monitor }) {
   const offline = !m.connected;
+  const [tab, setTab] = useState<SettingsCategory>("Todas");
+  const showAll = tab === "Todas";
+
   return (
     <div className="settings">
       {offline && (
@@ -48,29 +58,47 @@ export function SettingsPage({ m }: { m: Monitor }) {
           </Callout>
         </div>
       )}
-      <Panel title="Versão e atualizações" className="wide">
-        <div className="panel-body">
-          <Updates version={m.version} />
-        </div>
-      </Panel>
-      <FilesFolder m={m} />
-      <Accounts m={m} />
-      <WritingStyle m={m} />
-      <LocalAi m={m} />
-      <VoicePanel m={m} />
-      <GoogleCalendar m={m} />
-      <Rules m={m} />
-      <Panel title="Lembretes e resumo diário">
-        <div className="panel-body">
-          <p>
-            Defina horários, consulte os avisos e escolha se os detalhes
-            aparecem nas notificações do Windows.
-          </p>
-          <button onClick={() => m.setPage("Lembretes")}>Abrir agenda</button>
-        </div>
-      </Panel>
-      <Personalization m={m} />
-      <Application />
+      <div className="wide">
+        <Tabs<SettingsCategory>
+          label="Categorias de configuração"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { id: "Todas" },
+            { id: "Arquivos e Contas" },
+            { id: "IA e Voz" },
+            { id: "Agenda e Regras" },
+            { id: "Personalização" },
+          ]}
+        />
+      </div>
+      {(showAll || tab === "Personalização") && (
+        <Panel title="Versão e atualizações" className="wide">
+          <div className="panel-body">
+            <Updates version={m.version} />
+          </div>
+        </Panel>
+      )}
+      {(showAll || tab === "Arquivos e Contas") && <FilesFolder m={m} />}
+      {(showAll || tab === "Arquivos e Contas") && <Accounts m={m} />}
+      {(showAll || tab === "IA e Voz") && <WritingStyle m={m} />}
+      {(showAll || tab === "IA e Voz") && <LocalAi m={m} />}
+      {(showAll || tab === "IA e Voz") && <VoicePanel m={m} />}
+      {(showAll || tab === "Agenda e Regras") && <GoogleCalendar m={m} />}
+      {(showAll || tab === "Agenda e Regras") && <Rules m={m} />}
+      {(showAll || tab === "Agenda e Regras") && (
+        <Panel title="Lembretes e resumo diário">
+          <div className="panel-body">
+            <p>
+              Defina horários, consulte os avisos e escolha se os detalhes
+              aparecem nas notificações do Windows.
+            </p>
+            <button onClick={() => m.setPage("Lembretes")}>Abrir agenda</button>
+          </div>
+        </Panel>
+      )}
+      {(showAll || tab === "Personalização") && <Personalization m={m} />}
+      {(showAll || tab === "Personalização") && <Application />}
     </div>
   );
 }

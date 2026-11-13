@@ -405,7 +405,11 @@ export function Chat({
                     )}
                   </>
                 ) : (
-                  "Pensando…"
+                  <span className="typing-indicator" aria-label="Pensando…">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
                 )
               ) : (
                 <>

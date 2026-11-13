@@ -69,3 +69,12 @@ def test_rules_prevail_over_ai():
     date_only = decide('a@x.example', 'Oi', 'Sem qualquer prazo.', False,
                        ai(prazo_iso=date(2026, 11, 30)), context())
     assert date_only['prazo_iso'] is None and date_only['importancia'] == 'revisar'
+
+
+def test_date_is_read_from_ai_excerpt_when_ai_omits_it():
+    body = 'O seu KVM 2 será renovado em 07 de dezembro de 2026.'
+    ai = {'categoria': 'informativo', 'importancia': 'info', 'motivo': 'x', 'resumo': 'x', 'acao_sugerida': None,
+          'prazo_texto': None, 'prazo_iso': None, 'trecho_prazo': body, 'criar_demanda': False, 'confianca': 0.95}
+    result = decide('Hostinger <team@user.hostinger.com>', 'Renovação', body, True, ai, Context(today=date(2026, 11, 13)))
+    assert result['prazo_iso'] == date(2026, 12, 7)
+    assert result['importancia'] == 'info'

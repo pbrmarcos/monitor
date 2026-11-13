@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { stages, type Demand } from "../api";
@@ -79,12 +79,13 @@ export function Demands({ m }: { m: Monitor }) {
 
   const card = (d: Demand) => (
     <>
+      <span className="kanban-front-bar" />
       <span className="eyebrow">{frontLabel(d.front_id)}</span>
       <strong>{d.title}</strong>
       <p>{d.next_action || "Defina a próxima ação"}</p>
       <footer>
         <span>{dateLabel(d.due || d.return_date)}</span>
-        {d.priority === "alta" && <span className="tag priority">Alta</span>}
+        {d.priority === "alta" && <span className="tag priority"><AlertTriangle size={12} /> Alta</span>}
       </footer>
     </>
   );
@@ -103,7 +104,7 @@ export function Demands({ m }: { m: Monitor }) {
           >
             <header>
               <h3>{label}</h3>
-              <span className="count">{cards.length}</span>
+              <span className="nav-count">{cards.length}</span>
             </header>
             {cards.map((d) => (
               <button

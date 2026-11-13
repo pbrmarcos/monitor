@@ -405,6 +405,12 @@ textarea::placeholder {
 .sidebar nav button.active {
   box-shadow: inset 3px 0 var(--cyan);
 }
+.sidebar nav button:nth-child(8) {
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--sidebar-line);
+  border-radius: 0;
+}
 .nav-count {
   margin-left: auto;
   min-width: 22px;
@@ -607,11 +613,20 @@ td .avatar {
 .metric > div {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--s2);
   color: var(--muted);
   font-size: var(--text-small);
   font-weight: 500;
+}
+.metric-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--subtle);
+  color: var(--navy);
 }
 .metric > strong {
   font-family: var(--font-display);
@@ -847,6 +862,8 @@ td svg {
   font-size: var(--text-small);
 }
 .kanban-card {
+  position: relative;
+  overflow: hidden;
   display: grid;
   justify-content: stretch;
   gap: var(--s2);
@@ -863,6 +880,15 @@ td svg {
 .kanban-card {
   touch-action: none;
   user-select: none;
+}
+.kanban-front-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--navy);
+  border-radius: 3px 0 0 3px;
 }
 .kanban-card.lifted {
   opacity: 0.35;
@@ -1492,6 +1518,39 @@ input[type="color"] {
   border-color: var(--subtle);
   background: var(--subtle);
 }
+.message.message-assistant {
+  background: var(--bg);
+  border-color: var(--divider);
+}
+.typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: var(--s1) var(--s2);
+}
+.typing-indicator span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
 .message.error {
   border-color: var(--danger);
   color: var(--danger);
@@ -1624,6 +1683,8 @@ progress {
   padding: var(--s2);
   border: 0;
   resize: none;
+  background: transparent;
+  color: inherit;
 }
 .composer textarea:focus-visible {
   outline: 0;
@@ -1907,6 +1968,96 @@ dialog.modal::backdrop,
 .form-entry > * + * {
   margin-top: var(--s3);
 }
+/* ── Micro-interactions & CSS Transitions ────────────────────────── */
+
+/* Keyframes */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(var(--s2));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, var(--s3));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes aiBadgePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--cyan) 30%, transparent);
+  }
+}
+
+/* 1. Fade-in panels on load */
+.panel,
+.metric,
+.kanban-column {
+  animation: fadeUp 250ms ease-out both;
+}
+
+/* 2. Elevated hover on cards */
+.kanban-card,
+.social-card {
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+.kanban-card:hover,
+.social-card:hover {
+  box-shadow: 0 2px 8px rgba(13, 33, 58, 0.08);
+  transform: translateY(-1px);
+}
+
+/* 3. Subtle hover on rows */
+.row {
+  transition: background 150ms ease;
+}
+.row:hover {
+  background: var(--subtle);
+}
+
+/* 4. Animated toast */
+.toast {
+  animation: slideUp 250ms ease-out both;
+}
+.toast.leaving {
+  opacity: 0;
+  transform: translate(-50%, var(--s3));
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+/* 5. Smooth sidebar button transitions */
+.sidebar nav button {
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* 6. AI badge pulse */
+.badge.ai {
+  animation: aiBadgePulse 600ms ease-out 1;
+}
+
+/* 7. Mail item hover */
+.mail-item {
+  transition: background 150ms ease;
+}
+.mail-item:hover {
+  background: var(--subtle);
+}
+
+/* ── End micro-interactions ──────────────────────────────────────── */
+
 /* Telas largas: mais ar, mesmos tamanhos de texto */
 @media (min-width: 1800px) {
   .main {
