@@ -34,6 +34,8 @@ Arquivos curtos podem fornecer diretamente as instruções. Em arquivos longos, 
 
 Skills personalizadas podem ser editadas, preservando a referência. As skills da versão anterior continuam funcionando após a migração.
 
+Ao criar uma versão personalizada de uma skill incluída, desative a incluída se ambas tratarem da mesma tarefa. Isso evita gastar contexto com orientações repetidas ou contraditórias.
+
 A skill incluída **Remover padrões de escrita de IA** é uma [adaptação curta](../app/backend/monitor/skills/remover-padroes-ia.md) para revisões e reescritas, com prioridade nesse tipo de pedido. Ela não orienta todas as conversas. O original fornecido pelo usuário tinha 34.334 caracteres; o aplicativo distribui a adaptação, não esse documento inteiro.
 
 Nos dois textos fictícios testados no Qwen3.5 4B Q4_K_M, a versão adaptada usou entradas de aproximadamente 770 tokens e preservou os dados. O documento completo usou cerca de 8.440 tokens; em um dos casos, o modelo misturou a condição de pagamento com a entrega e manteve expressões genéricas. A adaptação também manteve um termo genérico em uma saída. Isso demonstra a necessidade de revisar o resultado; não mede uma taxa geral de acerto nem garante o cumprimento de todas as regras. O contexto permaneceu em 16.384 tokens e a alocação do modelo reportada pelo Ollama foi de aproximadamente 3,31 GiB de VRAM, excluindo o uso dos outros programas.
