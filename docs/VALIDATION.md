@@ -10,6 +10,8 @@ O teste visual com dados fictícios passou em 1400, 860 e 600 px, incluindo aber
 
 Mantido o modelo escolhido para a GPU de 6 GB. As skills são instruções locais, não treinamento dos pesos nem carregamento de modelos extras. O teste do executável empacotado também passou a verificar registros de ações, cadastro/desativação de skill e recuperação de imagem. A validação do novo instalador é feita pelo workflow Windows da release.
 
+O [build Windows do commit 14b0da5](https://github.com/pbrmarcos/monitor/actions/runs/43513006518) passou com 146 testes de backend e 22 de interface, executável empacotado (incluindo registros, skills e visualizador), Chrome, scheduler, motor de voz, PDF/Word, frontend, Rust e instaladores NSIS/MSI. A [release v0.10.0-alpha.1](https://github.com/pbrmarcos/monitor/releases/tag/v0.10.0-alpha.1) foi publicada com `.exe` de 141.329.727 bytes e `.msi` de 142.905.344 bytes. O manifesto público foi consultado sem autenticação: anuncia 0.10.0-alpha.1, contém as assinaturas dos dois instaladores e seus URLs responderam HTTP 200. A instalação efetiva e a mudança da versão na janela instalada ainda exigem conclusão da atualização pelo usuário.
+
 ## Interface e datas de e-mails (0.9.1-alpha.1)
 
 135 testes de backend passaram. As alterações do Antigravity no commit 1244e29 também passaram pela compilação TypeScript/Vite e pelos 17 testes de componentes. O novo caso verifica a extração da data escrita no trecho literal citado pela IA, mantendo uma renovação informativa como informativa.

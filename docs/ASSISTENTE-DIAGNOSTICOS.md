@@ -24,4 +24,4 @@ Cada pergunta recebe no máximo duas skills, escolhidas por palavras-chave e pre
 
 É possível desativar qualquer skill incluída e criar até oito personalizadas, com nome, descrição, palavras-chave e até 600 caracteres de instruções. Instruções orientam a resposta; as ações disponíveis continuam limitadas às ferramentas implementadas pelo aplicativo. Dados atuais do trabalho continuam vindo do banco.
 
-As mudanças estão no código-fonte; exigem uma nova compilação/instalação para aparecerem no aplicativo instalado. Não alteram automaticamente um instalador já publicado.
+Recursos incluídos a partir da versão **0.10.0-alpha.1**. Para atualizar o aplicativo instalado, use **Configurações → Verificar atualizações**, conclua a instalação e reabra o Monitor. Também é possível usar o instalador `.exe` ou `.msi` da release correspondente no GitHub.
