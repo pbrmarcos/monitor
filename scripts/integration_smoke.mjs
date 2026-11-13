@@ -17,7 +17,7 @@ await mkdir("tmp", { recursive: true });
 const directory = await mkdtemp(join(resolve("tmp"), "integration-"));
 const backend = spawn(
   resolve(".venv/Scripts/python.exe"),
-  ["-u", "app/backend/run_backend.py"],
+  ["-u", "scripts/integration_backend.py"],
   {
     env: {
       ...process.env,
@@ -94,7 +94,9 @@ try {
       .getByRole("button", { name: /Quais demandas estão abertas\?.*Trabalho/ })
       .click();
     await page.locator(".message.message-assistant").first().waitFor();
-    await page.getByLabel("Nova regra").fill("Responder sempre em tópicos curtos");
+    await page
+      .getByLabel("Nova regra")
+      .fill("Responder sempre em tópicos curtos");
     await page.getByRole("button", { name: "Adicionar", exact: true }).click();
     await page
       .getByRole("button", {
@@ -115,6 +117,53 @@ try {
       .getByRole("button", { name: "Visão geral", exact: true })
       .click();
   } else console.log("Chat não testado nesta execução");
+  // Ações reais por chat: não dependem do Ollama, não usam contas ou credenciais reais.
+  await page
+    .getByLabel("Mensagem para o assistente")
+    .fill("Crie um lembrete Consulta de teste 08/12/2099 às 14:30");
+  await page.getByRole("button", { name: "Enviar mensagem" }).click();
+  await page.getByRole("button", { name: "Abrir lembretes" }).waitFor();
+  await mkdir("tmp/ui", { recursive: true });
+  await page.screenshot({
+    path: "tmp/ui/assistant-action-created.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Abrir lembretes" }).click();
+  await page.getByText("Consulta de teste", { exact: true }).waitFor();
+  await page.reload();
+  await page.getByText("Backend local conectado").waitFor();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Lembretes", exact: true })
+    .click();
+  await page.getByText("Consulta de teste", { exact: true }).waitFor();
+  const reminderRequest = () =>
+    fetch(`http://127.0.0.1:${connection.port}/reminders`, {
+      headers: { Authorization: `Bearer ${connection.token}` },
+    }).then((r) => r.json());
+  const created = (await reminderRequest()).find(
+    (r) => r.text === "Consulta de teste",
+  );
+  if (!created || !created.when.startsWith("2099-12-08T17:30"))
+    throw new Error("Lembrete do chat não persistiu no horário correto");
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Visão geral", exact: true })
+    .click();
+  await page
+    .getByLabel("Mensagem para o assistente")
+    .fill(`Conclua o lembrete [L${created.id}]`);
+  await page.getByRole("button", { name: "Enviar mensagem" }).click();
+  await page.getByRole("button", { name: "Abrir lembretes" }).waitFor();
+  if (
+    !(await reminderRequest()).some(
+      (r) => r.id === created.id && r.status === "concluido",
+    )
+  )
+    throw new Error("Chat não concluiu o lembrete");
+  console.log(
+    "Assistant actions: real HTTP + SQLite, create/open/reload/complete reminder OK",
+  );
   // Personalização: nome da frente, perfil e cores persistem após recarregar.
   await page
     .locator("nav")

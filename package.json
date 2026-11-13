@@ -1,6 +1,6 @@
 {
   "name": "monitor-workspace",
-  "version": "0.7.0-alpha.1",
+  "version": "0.8.0-alpha.1",
   "private": true,
   "workspaces": [
     "app/frontend",

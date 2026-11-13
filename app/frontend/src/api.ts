@@ -224,6 +224,14 @@ export type Conversation = {
   updated_at: string;
 };
 export type AssistantRule = { id: number; text: string; source: string };
+export type ChatAction = {
+  kind: "reminder" | "demand";
+  id: number;
+  operation: string;
+  text: string;
+  when?: string;
+  timezone?: string;
+};
 /** Envia uma pergunta a uma conversa salva e acompanha a resposta em partes. */
 export async function conversationStream(
   id: number,
@@ -232,12 +240,14 @@ export async function conversationStream(
     delta: (text: string) => void;
     rule: (rule: AssistantRule) => void;
     done: (conversation?: Conversation) => void;
+    action?: (result: ChatAction) => void;
+    front_id?: number;
   },
 ) {
   const response = await request(
     `/assistant/conversations/${id}/messages`,
     "POST",
-    { content },
+    { content, ...(on.front_id ? { front_id: on.front_id } : {}) },
   );
   if (!response.ok || !response.body)
     throw new Error("Não foi possível enviar a pergunta.");
@@ -256,6 +266,7 @@ export async function conversationStream(
       if (item.error) throw new Error(item.error);
       if (item.delta) on.delta(item.delta);
       if (item.rule) on.rule(item.rule);
+      if (item.action) on.action?.(item.action);
       if (item.done) {
         finished = true;
         on.done(item.conversation);

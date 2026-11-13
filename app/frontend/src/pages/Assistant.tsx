@@ -2,6 +2,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Briefcase,
+  CheckCircle2,
   MessageSquare,
   Plus,
   Sparkles,
@@ -9,7 +10,13 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { api, AssistantRule, Conversation, conversationStream } from "../api";
+import {
+  api,
+  AssistantRule,
+  ChatAction,
+  Conversation,
+  conversationStream,
+} from "../api";
 import type { Monitor } from "../store";
 import { Callout, timeLabel } from "../ui";
 
@@ -21,6 +28,7 @@ type ChatMessage = {
   role: "user" | "assistant" | "rule";
   text: string;
   error?: boolean;
+  action?: ChatAction;
 };
 const draft = (mode: ChatMode) => `new-${mode}`;
 
@@ -99,11 +107,16 @@ export function useAssistant(m: Monitor) {
         { role: "assistant", text: "" },
       ]);
       await conversationStream(id, question, {
+        front_id: m.front || undefined,
         delta: (part) =>
           patchAnswer(key, (last) => ({ ...last, text: last.text + part })),
         rule: (rule) => {
           setRules((old) => [rule, ...old.filter((r) => r.id !== rule.id)]);
           append(key, [{ role: "rule", text: rule.text }]);
+        },
+        action: (result) => {
+          patchAnswer(key, (last) => ({ ...last, action: result }));
+          void m.refreshDemands?.().catch(m.fail);
         },
         done: (conversation) => {
           if (conversation)
@@ -215,6 +228,14 @@ export function useAssistant(m: Monitor) {
       return !!demand;
     },
     hasDemand: (id: number) => m.demands.some((item) => item.id === id),
+    openAction: (result: ChatAction) => {
+      if (result.kind === "reminder") m.setPage("Lembretes");
+      else {
+        const demand = m.demands.find((item) => item.id === result.id);
+        if (demand) m.setDetail(demand);
+        else m.setPage("Demandas");
+      }
+    },
     preview: !connected,
     available: !!m.ollama?.available,
     model: m.settings.model,
@@ -295,7 +316,7 @@ export function Chat({
           <p>
             {general
               ? "Um espaço para tirar dúvidas, explorar ideias, escrever ou aprender sobre qualquer assunto com a sua IA local. Cada conversa fica salva neste computador."
-              : "Pergunte sobre suas demandas, prazos, e-mails e lembretes. A resposta sai do modelo instalado neste computador e cita de onde veio cada informação."}
+              : "Consulte seus dados ou peça uma ação: criar uma demanda, registrar um lembrete, reagendar ou concluir. Informe data e horário para lembretes e a frente para demandas."}
           </p>
         </div>
       )}
@@ -309,7 +330,8 @@ export function Chat({
         >
           {chat.available
             ? `O modelo ${chat.model} ainda não foi baixado.`
-            : "O Ollama não respondeu. Abra o Ollama e verifique de novo em Configurações."}
+            : "O Ollama não respondeu. Abra o Ollama e verifique de novo em Configurações."}{" "}
+          Pedidos diretos de lembretes e demandas continuam disponíveis.
         </Callout>
       )}
       <div className="chat-log" aria-live="polite" ref={log}>
@@ -328,7 +350,26 @@ export function Chat({
             >
               {message.role === "assistant" && !message.error ? (
                 message.text ? (
-                  <Answer text={message.text} chat={chat} />
+                  <>
+                    <Answer text={message.text} chat={chat} />
+                    {message.action && (
+                      <div className="chat-action-result">
+                        <span>
+                          <CheckCircle2 size={16} aria-hidden /> Resultado
+                          registrado
+                        </span>
+                        <button
+                          className="sm"
+                          onClick={() => chat.openAction(message.action!)}
+                        >
+                          {message.action.kind === "reminder"
+                            ? "Abrir lembretes"
+                            : "Abrir demanda"}
+                          <ArrowUpRight size={16} aria-hidden />
+                        </button>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   "Pensando…"
                 )
@@ -346,7 +387,7 @@ export function Chat({
                 "Me ajude a desenvolver uma ideia",
                 "Explique um assunto de forma simples",
               ]
-            : ["O que priorizar hoje?", "Resumir meus e-mails"]
+            : ["O que priorizar hoje?", "Crie um lembrete para amanhã às 9h"]
           ).map((prompt) => (
             <button
               key={prompt}
@@ -371,7 +412,7 @@ export function Chat({
           placeholder={
             general
               ? "Converse sobre qualquer assunto…"
-              : "Pergunte sobre suas demandas…"
+              : "Pergunte ou peça uma ação…"
           }
           maxLength={4000}
           value={question}
@@ -392,7 +433,9 @@ export function Chat({
         </button>
       </form>
       <div className="chat-foot">
-        <small>IA local · confira as respostas antes de agir</small>
+        <small>
+          IA local · pedidos diretos podem criar e alterar registros
+        </small>
         {compact && chat.messages.length > 0 && (
           <button className="link" disabled={chat.busy} onClick={chat.clear}>
             Nova conversa

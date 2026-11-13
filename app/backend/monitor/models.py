@@ -20,6 +20,7 @@ def as_utc(value: datetime | None) -> datetime | None:
 
 
 class Demand(SQLModel, table=True):
+    __table_args__ = {'sqlite_autoincrement': True}
     id: int | None = Field(default=None, primary_key=True)
     title: str
     front_id: int
@@ -124,6 +125,7 @@ class Suggestion(SQLModel, table=True):
 
 
 class Reminder(SQLModel, table=True):
+    __table_args__ = {'sqlite_autoincrement': True}
     id: int | None = Field(default=None, primary_key=True)
     text: str
     when: datetime = Field(index=True)
@@ -282,3 +284,24 @@ class CalendarLink(SQLModel, table=True):
     event_id: str
     fingerprint: str = ''
     synced_at: datetime | None = None
+
+
+class ReminderCalendarLink(SQLModel, table=True):
+    reminder_id: int = Field(primary_key=True)
+    event_id: str
+    duration_minutes: int = 30
+    fingerprint: str = ''
+    synced_at: datetime | None = None
+
+
+class AssistantAction(SQLModel, table=True):
+    __table_args__ = {'sqlite_autoincrement': True}
+    id: int | None = Field(default=None, primary_key=True)
+    conversation_id: int = Field(index=True)
+    question_id: int = Field(unique=True)
+    answer_id: int | None = None
+    kind: str
+    status: str = 'pending'
+    arguments: str = '{}'
+    result: str = '{}'
+    created_at: datetime = Field(default_factory=now)

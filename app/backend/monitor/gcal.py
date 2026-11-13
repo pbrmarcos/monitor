@@ -19,7 +19,7 @@ import httpx
 from sqlmodel import Session, select
 
 from . import prefs
-from .models import CalendarLink, Demand, Setting, now
+from .models import CalendarLink, ReminderCalendarLink, Reminder, Demand, Setting, now, as_utc
 
 AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 TOKEN_URL = 'https://oauth2.googleapis.com/token'
@@ -61,7 +61,7 @@ def status(db: Session, vault) -> dict:
         'email': _get(db, 'google_email'),
         'last_sync': _get(db, 'google_last_sync') or None,
         'error': _get(db, 'google_error'),
-        'events': len(db.exec(select(CalendarLink).where(CalendarLink.fingerprint != '')).all()),
+        'events': len(db.exec(select(CalendarLink).where(CalendarLink.fingerprint != '')).all()) + len(db.exec(select(ReminderCalendarLink).where(ReminderCalendarLink.fingerprint != '')).all()),
     }
 
 
@@ -71,6 +71,8 @@ def disconnect(engine, vault) -> None:
     _access.clear()
     with Session(engine) as db:
         for link in db.exec(select(CalendarLink)).all():
+            db.delete(link)
+        for link in db.exec(select(ReminderCalendarLink)).all():
             db.delete(link)
         for key in ('google_email', 'google_error', 'google_last_sync'):
             if row := db.get(Setting, key):
@@ -225,7 +227,55 @@ def _fingerprint(body: dict) -> str:
     return hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
-def sync(engine, vault) -> dict:
+def reminder_event_for(reminder, link, zone):
+    start = as_utc(reminder.when)
+    return {'summary': reminder.text, 'description': 'Compromisso criado pelo assistente do Monitor a pedido do usuário.',
+            'start': {'dateTime': start.isoformat(), 'timeZone': zone},
+            'end': {'dateTime': (start + timedelta(minutes=link.duration_minutes)).isoformat(), 'timeZone': zone},
+            'extendedProperties': {'private': {'monitor_reminder': str(reminder.id)}}}
+
+
+def sync_reminders(db, client, headers, result, identifier=None):
+    """Somente os lembretes cujo envio ao Google foi pedido explicitamente."""
+    from .reminders import settings
+    zone = settings(db)['timezone']
+    query = select(ReminderCalendarLink)
+    if identifier is not None:
+        query = query.where(ReminderCalendarLink.reminder_id == identifier)
+    for link in db.exec(query).all():
+        reminder = db.get(Reminder, link.reminder_id)
+        if not reminder or reminder.status == 'cancelado':
+            if link.fingerprint:
+                response = client.delete(f'{EVENTS_URL}/{link.event_id}', headers=headers)
+                if response.status_code not in (200, 204, 404, 410):
+                    response.raise_for_status()
+                result['removed'] += 1
+            db.delete(link)
+            db.commit()
+            continue
+        body = reminder_event_for(reminder, link, zone)
+        mark = _fingerprint(body)
+        if link.fingerprint == mark:
+            continue
+        created = not link.fingerprint
+        response = (client.post(EVENTS_URL, headers=headers, json={**body, 'id': link.event_id}) if created
+                    else client.put(f'{EVENTS_URL}/{link.event_id}', headers=headers, json=body))
+        if created and response.status_code == 409:
+            response = client.put(f'{EVENTS_URL}/{link.event_id}', headers=headers, json=body)
+        elif not created and response.status_code in (404, 410):
+            link.event_id, link.fingerprint = uuid.uuid4().hex, ''
+            db.add(link)
+            db.commit()
+            response = client.post(EVENTS_URL, headers=headers, json={**body, 'id': link.event_id})
+            created = True
+        response.raise_for_status()
+        link.fingerprint, link.synced_at = mark, now()
+        db.add(link)
+        db.commit()
+        result['created' if created else 'updated'] += 1
+
+
+def sync(engine, vault, *, reminder_id=None) -> dict:
     """Leva o estado das demandas para a agenda. Seguro para repetir: falhas ficam para a próxima rodada."""
     result = {'created': 0, 'updated': 0, 'removed': 0}
     if not vault.get(TOKEN_REF) or not _lock.acquire(blocking=False):
@@ -235,8 +285,8 @@ def sync(engine, vault) -> dict:
         with Session(engine) as db, _client() as client:
             headers = {'Authorization': f'Bearer {_token(engine, vault, client)}'}
             fronts = prefs.front_names(db)
-            desired = {d.id: body for d in db.exec(select(Demand)).all() if (body := event_for(d, fronts))}
-            links = {link.demand_id: link for link in db.exec(select(CalendarLink)).all()}
+            desired = {d.id: body for d in db.exec(select(Demand)).all() if (body := event_for(d, fronts))} if reminder_id is None else {}
+            links = {link.demand_id: link for link in db.exec(select(CalendarLink)).all()} if reminder_id is None else {}
             for demand_id, body in desired.items():
                 mark = _fingerprint(body)
                 link = links.get(demand_id)
@@ -275,6 +325,7 @@ def sync(engine, vault) -> dict:
                     result['removed'] += 1
                 db.delete(link)
                 db.commit()
+            sync_reminders(db, client, headers, result, reminder_id)
     except CalendarError as failure:
         error = str(failure)
     except httpx.HTTPStatusError as failure:

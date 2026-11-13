@@ -1092,6 +1092,24 @@ hr {
 }
 
 /* Redes sociais */
+.chat-action-result {
+  display: grid;
+  gap: var(--s3);
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--divider);
+  white-space: normal;
+}
+.chat-action-result > span {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  font-size: var(--text-caption);
+  color: var(--muted);
+}
+.chat-action-result button {
+  justify-self: start;
+}
 .social-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));

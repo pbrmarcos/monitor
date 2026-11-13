@@ -1,4 +1,4 @@
-# Demandas no Google Agenda
+# Demandas e lembretes no Google Agenda
 
 O Monitor grava as demandas com data na agenda principal da conta Google que você conectar. O sentido é único: o Monitor cria, atualiza e apaga os próprios eventos e não lê os seus compromissos.
 
@@ -10,6 +10,14 @@ O Monitor grava as demandas com data na agenda principal da conta Google que voc
 - Demanda sem data não aparece na agenda. Ao marcar Ganho ou Perdido, ou ao excluir a demanda, o evento é removido.
 - A mudança chega à agenda em segundos; se o computador estiver sem internet, o Monitor tenta de novo a cada 2 minutos.
 - Se você editar um evento direto no Google, a alteração é substituída na próxima vez que a demanda mudar.
+
+## Lembretes com horário pelo assistente
+
+Peça **Crie um lembrete Consulta amanhã às 14:30 no Google por 1 hora**. O chat grava o lembrete local e solicita um evento com início e fim no fuso configurado. Sem duração, usa 30 minutos e informa esse valor. Lembretes locais comuns não são enviados automaticamente.
+
+Sem conta conectada ou com falha, o lembrete permanece salvo e o envio é identificado como pendente; não aparece uma confirmação falsa de criação no Google. Ao conectar, a sincronização tenta novamente. Reagendar o lembrete atualiza o evento; cancelar o remove; concluir o lembrete mantém o compromisso. Os IDs são persistidos antes do envio para que uma repetição após falha não crie outro evento.
+
+Somente título, horário, duração e uma descrição fixa são enviados; não há convidados. A implementação usa os campos de [eventos da API Google Calendar](https://developers.google.com/workspace/calendar/api/v3/reference/events). O fluxo está detalhado em [Ações do assistente](ASSISTENTE.md).
 
 ## Configuração (uma única vez)
 
@@ -34,4 +42,4 @@ O Google exige que cada aplicativo use uma credencial própria. Você cria a sua
 ## Limites
 
 - A conexão com uma conta Google real ainda não foi exercitada; os testes usam um Google simulado. Erros aparecem no painel em Configurações.
-- Só a agenda principal é usada. Lembretes do Monitor não são enviados para a agenda.
+- Só a agenda principal é usada. Apenas os lembretes cujo envio foi pedido explicitamente são enviados para a agenda.

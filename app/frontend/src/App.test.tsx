@@ -24,6 +24,75 @@ HTMLDialogElement.prototype.close = function () {
   this.open = false;
 };
 describe("Monitor interface", () => {
+  it("shows a recorded assistant action and opens the reminders screen", async () => {
+    const calls = vi
+      .spyOn(client, "api")
+      .mockImplementation(async (path, method) =>
+        path === "/assistant/conversations" && method === "POST"
+          ? ({
+              id: 1,
+              mode: "general",
+              title: "",
+              updated_at: new Date().toISOString(),
+            } as never)
+          : ([] as never),
+      );
+    const stream = vi
+      .spyOn(client, "conversationStream")
+      .mockImplementation(async (id, content, on) => {
+        on.delta("Criado [L5]: Consulta. Data: 08/12/2026 às 14:30.");
+        on.action?.({
+          kind: "reminder",
+          id: 5,
+          operation: "created",
+          text: "Consulta",
+        });
+        on.done({
+          id,
+          mode: "general",
+          title: content,
+          updated_at: new Date().toISOString(),
+        });
+      });
+    const m = {
+      connected: true,
+      front: 4,
+      settings: { model: "local" },
+      ollama: { available: false, models: [] },
+      demands: [],
+      refreshDemands: vi.fn(async () => {}),
+      setPage: vi.fn(),
+      setNotice: vi.fn(),
+      setDetail: vi.fn(),
+      fail: vi.fn(),
+    } as unknown as Monitor;
+    function Page() {
+      return <AssistantPage a={useAssistant(m)} />;
+    }
+    try {
+      const user = userEvent.setup();
+      render(<Page />);
+      await user.type(
+        screen.getByLabelText("Mensagem para o assistente"),
+        "Crie um lembrete Consulta amanhã às 9h",
+      );
+      await user.click(screen.getByRole("button", { name: "Enviar mensagem" }));
+      expect(
+        await screen.findByText("Resultado registrado"),
+      ).toBeInTheDocument();
+      expect(m.refreshDemands).toHaveBeenCalled();
+      expect(stream).toHaveBeenCalledWith(
+        1,
+        "Crie um lembrete Consulta amanhã às 9h",
+        expect.objectContaining({ front_id: 4 }),
+      );
+      await user.click(screen.getByRole("button", { name: "Abrir lembretes" }));
+      expect(m.setPage).toHaveBeenCalledWith("Lembretes");
+    } finally {
+      stream.mockRestore();
+      calls.mockRestore();
+    }
+  });
   it("shows the installed desktop version and checks updates only on request", async () => {
     const desktop = vi.mocked(core.isTauri).mockReturnValue(true);
     const version = vi.mocked(app.getVersion).mockResolvedValue("1.2.3-test");
@@ -67,23 +136,29 @@ describe("Monitor interface", () => {
     let next = 1;
     const calls = vi
       .spyOn(client, "api")
-      .mockImplementation(async (path: string, method = "GET", body?: unknown) => {
-        if (path === "/assistant/conversations" && method === "POST")
-          return {
-            id: next++,
-            mode: (body as { mode: string }).mode,
-            title: "",
-            updated_at: new Date().toISOString(),
-          } as never;
-        if (method === "GET") return [] as never;
-        return undefined as never;
-      });
+      .mockImplementation(
+        async (path: string, method = "GET", body?: unknown) => {
+          if (path === "/assistant/conversations" && method === "POST")
+            return {
+              id: next++,
+              mode: (body as { mode: string }).mode,
+              title: "",
+              updated_at: new Date().toISOString(),
+            } as never;
+          if (method === "GET") return [] as never;
+          return undefined as never;
+        },
+      );
     const stream = vi
       .spyOn(client, "conversationStream")
       .mockImplementation(async (id, content, on) => {
         on.delta("Resposta local.");
         if (content.includes("sempre"))
-          on.rule({ id: 9, text: "Responder em tópicos", source: "assistente" });
+          on.rule({
+            id: 9,
+            text: "Responder em tópicos",
+            source: "assistente",
+          });
         on.done({
           id,
           mode: id === 1 ? "general" : "work",
@@ -153,7 +228,10 @@ describe("Monitor interface", () => {
         }),
       );
       await user.click(screen.getByRole("button", { name: "Excluir" }));
-      expect(calls).toHaveBeenCalledWith("/assistant/conversations/1", "DELETE");
+      expect(calls).toHaveBeenCalledWith(
+        "/assistant/conversations/1",
+        "DELETE",
+      );
       expect(
         screen.queryByRole("button", { name: /Explique as estrelas.*Geral/ }),
       ).not.toBeInTheDocument();

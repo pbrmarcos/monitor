@@ -41,6 +41,14 @@ with tempfile.TemporaryDirectory() as folder:
                 return json.loads(raw) if raw else None
         conversation = assistant_call('/assistant/conversations', 'POST', {'mode': 'general'})
         assert assistant_call(f"/assistant/conversations/{conversation['id']}/messages") == []
+        payload = {'content': 'Crie um lembrete Consulta de exemplo 08/12/2099 as 14:30'}
+        request = urllib.request.Request(url + f"/assistant/conversations/{conversation['id']}/messages", headers=headers,
+                                         data=json.dumps(payload).encode(), method='POST')
+        with urllib.request.urlopen(request, timeout=10) as response:
+            action_events = [json.loads(line) for line in response.read().decode().splitlines()]
+        assert any(item.get('action', {}).get('kind') == 'reminder' for item in action_events)
+        saved_reminders = assistant_call('/reminders')
+        assert saved_reminders[0]['text'] == 'Consulta de exemplo'
         rule = assistant_call('/assistant/rules', 'POST', {'text': 'Responder sempre com clareza'})
         assert any(item['id'] == rule['id'] for item in assistant_call('/assistant/rules'))
         assistant_call(f"/assistant/conversations/{conversation['id']}", 'DELETE')

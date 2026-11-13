@@ -24,10 +24,10 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from . import ai, assistant, gcal, inbox, mail, prefs, social, storage, reminders, agenda_api, sites, forms
 from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Event, Setting, Suggestion, as_utc, now
-from .models import Conversation, ChatTurn, AssistantRule
+from .models import Conversation, ChatTurn, AssistantRule, Reminder
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
-VERSION = '0.7.0-alpha.1'
+VERSION = '0.8.0-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
@@ -85,6 +85,24 @@ class StorageInput(BaseModel):
     files_dir: str = Field(min_length=1, max_length=400)
 
 
+def preserve_identifiers(connection, models):
+    for model in models:
+        table = model.__table__
+        definition = connection.execute(text('SELECT sql FROM sqlite_master WHERE type=\'table\' AND name=:name'), {'name': table.name}).scalar()
+        if definition and 'AUTOINCREMENT' not in definition.upper():
+            columns = {row[1] for row in connection.execute(text(f'PRAGMA table_info("{table.name}")'))}
+            if columns != set(table.columns.keys()):
+                raise RuntimeError('Esquema incompatível; migração dos identificadores cancelada.')
+            previous = f'{table.name}_before_stable_ids'
+            connection.execute(text(f'ALTER TABLE "{table.name}" RENAME TO "{previous}"'))
+            connection.execute(CreateTable(table))
+            names = ', '.join(f'"{name}"' for name in table.columns.keys())
+            connection.execute(text(f'INSERT INTO "{table.name}" ({names}) SELECT {names} FROM "{previous}"'))
+            connection.execute(text(f'DROP TABLE "{previous}"'))
+            for index in table.indexes:
+                connection.execute(CreateIndex(index))
+
+
 def migrate(engine):
     """Migrações versionadas; cada mudança de esquema acrescenta uma versão."""
     with engine.begin() as connection:
@@ -96,21 +114,7 @@ def migrate(engine):
         # Protótipos locais já podem ter as tabelas de chat sem AUTOINCREMENT.
         # Recria atomicamente, preservando IDs e mensagens, para respostas atrasadas
         # nunca encontrarem uma conversa nova com o mesmo identificador.
-        for model in (Conversation, ChatTurn, AssistantRule):
-            table = model.__table__
-            definition = connection.execute(text('SELECT sql FROM sqlite_master WHERE type=\'table\' AND name=:name'), {'name': table.name}).scalar()
-            if definition and 'AUTOINCREMENT' not in definition.upper():
-                columns = {row[1] for row in connection.execute(text(f'PRAGMA table_info("{table.name}")'))}
-                if columns != set(table.columns.keys()):
-                    raise RuntimeError('Esquema incompatível; migração de conversas cancelada.')
-                previous = f'{table.name}_before_v7'
-                connection.execute(text(f'ALTER TABLE "{table.name}" RENAME TO "{previous}"'))
-                connection.execute(CreateTable(table))
-                names = ', '.join(f'"{name}"' for name in table.columns.keys())
-                connection.execute(text(f'INSERT INTO "{table.name}" ({names}) SELECT {names} FROM "{previous}"'))
-                connection.execute(text(f'DROP TABLE "{previous}"'))
-                for index in table.indexes:
-                    connection.execute(CreateIndex(index))
+        preserve_identifiers(connection, (Conversation, ChatTurn, AssistantRule))
         # Versão 2: origem e autoria das demandas (tabelas de e-mail vêm do create_all).
         columns = {row[1] for row in connection.execute(text('PRAGMA table_info(demand)'))}
         if 'origin_ref' not in columns:
@@ -127,7 +131,8 @@ def migrate(engine):
                                  'metrics_complete': 'BOOLEAN NOT NULL DEFAULT 1'}.items():
             if name not in social_columns:
                 connection.execute(text(f'ALTER TABLE socialprofile ADD COLUMN {name} {definition}'))
-        for version in (1, 2, 3, 4, 5, 6, 7, 8):  # 8: navegador do Instagram e comentários
+        preserve_identifiers(connection, (Demand, Reminder))
+        for version in (1, 2, 3, 4, 5, 6, 7, 8, 9):  # 9: ações do assistente e lembretes no Google
             connection.execute(text('INSERT OR IGNORE INTO schema_migrations VALUES (:v)'), {'v': version})
 
 
@@ -255,7 +260,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     app.include_router(sites.router(engine, session, demo))
     app.include_router(forms.router(engine, session, vault, demo))
     app.include_router(social.router(engine, session, vault, demo))
-    app.include_router(assistant.router(engine, session))
+    app.include_router(assistant.router(engine, session, vault=vault, demo=demo))
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, error):
