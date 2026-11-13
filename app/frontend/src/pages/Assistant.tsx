@@ -19,8 +19,15 @@ import {
   Conversation,
   conversationStream,
   VoiceStatus,
+  InferenceMetrics,
 } from "../api";
 import { Composer } from "./Composer";
+import {
+  AssistantRecords,
+  AssistantSkills,
+  ImageViewer,
+  ResponseMetrics,
+} from "./AssistantTools";
 import type { Monitor } from "../store";
 import { Callout, timeLabel } from "../ui";
 
@@ -34,6 +41,7 @@ type ChatMessage = {
   error?: boolean;
   action?: ChatAction;
   attachments?: { id: number; name: string; kind: string }[];
+  metrics?: InferenceMetrics;
 };
 const draft = (mode: ChatMode) => `new-${mode}`;
 
@@ -148,6 +156,8 @@ export function useAssistant(m: Monitor) {
           patchAnswer(key, (last) => ({ ...last, action: result }));
           void m.refreshDemands?.().catch(m.fail);
         },
+        metrics: (result) =>
+          patchAnswer(key, (last) => ({ ...last, metrics: result })),
         done: (conversation) => {
           if (conversation)
             setConversations((old) => [
@@ -330,6 +340,7 @@ export function Chat({
   compact?: boolean;
 }) {
   const general = chat.mode === "general";
+  const [image, setImage] = useState<{ id: number; name: string } | null>(null);
   const log = useRef<HTMLDivElement>(null);
   useEffect(() => {
     log.current?.scrollTo?.({ top: log.current.scrollHeight });
@@ -386,6 +397,9 @@ export function Chat({
                 message.text ? (
                   <>
                     <Answer text={message.text} chat={chat} />
+                    {message.metrics && (
+                      <ResponseMetrics value={message.metrics} />
+                    )}
                     {message.action && (
                       <div className="chat-action-result">
                         <span>
@@ -416,14 +430,30 @@ export function Chat({
                   {message.attachments?.length ? (
                     <span className="attach-row sent">
                       {message.attachments.map((file) => (
-                        <span className="attach-chip static" key={file.id}>
+                        <button
+                          type="button"
+                          className="attach-chip static"
+                          key={file.id}
+                          disabled={file.kind !== "image"}
+                          title={
+                            file.kind === "image"
+                              ? "Abrir no visualizador"
+                              : file.name
+                          }
+                          aria-label={
+                            file.kind === "image"
+                              ? `Abrir imagem: ${file.name}`
+                              : file.name
+                          }
+                          onClick={() => setImage(file)}
+                        >
                           {file.kind === "image" ? (
                             <ImageIcon size={16} aria-hidden />
                           ) : (
                             <FileText size={16} aria-hidden />
                           )}
                           <span className="attach-name">{file.name}</span>
-                        </span>
+                        </button>
                       ))}
                     </span>
                   ) : null}
@@ -472,6 +502,9 @@ export function Chat({
           </button>
         )}
       </div>
+      {image && (
+        <ImageViewer key={image.id} file={image} close={() => setImage(null)} />
+      )}
     </div>
   );
 }
@@ -492,7 +525,7 @@ export function AssistantHeader({ a }: { a: Assistant }) {
 
 const modeLabel = { work: "Trabalho", general: "Geral" };
 
-export function AssistantPage({ a }: { a: Assistant }) {
+function ConversationsPage({ a }: { a: Assistant }) {
   const [confirming, setConfirming] = useState<number | null>(null);
   const [rule, setRule] = useState("");
   const chat = a[a.view];
@@ -644,6 +677,80 @@ export function AssistantPage({ a }: { a: Assistant }) {
         </div>
         <Chat chat={chat} />
       </section>
+    </div>
+  );
+}
+
+export function AssistantPage({ a }: { a: Assistant }) {
+  const [tab, setTab] = useState("conversations");
+  return (
+    <div className="assistant-workspace">
+      <div
+        className="assistant-tabs"
+        role="tablist"
+        aria-label="Área do assistente"
+      >
+        {[
+          ["conversations", "Conversas"],
+          ["records", "Registros e dados"],
+          ["skills", "Skills"],
+        ].map(([id, name]) => (
+          <button
+            key={id}
+            role="tab"
+            id={`assistant-tab-${id}`}
+            aria-controls={`assistant-panel-${id}`}
+            aria-selected={tab === id}
+            tabIndex={tab === id ? 0 : -1}
+            onKeyDown={(event) => {
+              const ids = ["conversations", "records", "skills"];
+              const index = ids.indexOf(id);
+              const target =
+                event.key === "ArrowRight"
+                  ? ids[(index + 1) % ids.length]
+                  : event.key === "ArrowLeft"
+                    ? ids[(index + ids.length - 1) % ids.length]
+                    : event.key === "Home"
+                      ? ids[0]
+                      : event.key === "End"
+                        ? ids[ids.length - 1]
+                        : null;
+              if (target) {
+                event.preventDefault();
+                setTab(target);
+                document.getElementById(`assistant-tab-${target}`)?.focus();
+              }
+            }}
+            onClick={() => setTab(id)}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+      <div
+        role="tabpanel"
+        id={`assistant-panel-${tab}`}
+        aria-labelledby={`assistant-tab-${tab}`}
+      >
+        {tab === "conversations" ? (
+          <ConversationsPage a={a} />
+        ) : tab === "records" ? (
+          <AssistantRecords
+            connected={a.connected}
+            openConversation={(id) => {
+              const conversation = a.conversations.find(
+                (item) => item.id === id,
+              );
+              if (conversation) {
+                void a.open(conversation);
+                setTab("conversations");
+              }
+            }}
+          />
+        ) : (
+          <AssistantSkills connected={a.connected} />
+        )}
+      </div>
     </div>
   );
 }

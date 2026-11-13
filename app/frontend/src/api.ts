@@ -94,7 +94,16 @@ export type Storage = {
   suggestion: string;
 };
 export type Ollama = { available: boolean; models: string[] };
-export type AppSettings = { model: string; priority_senders: string[] };
+export type AppSettings = {
+  model: string;
+  priority_senders: string[];
+  keep_model_warm?: boolean;
+};
+export type ModelRuntime = {
+  state: string;
+  detail: string;
+  load_seconds?: number;
+};
 
 export const stages = {
   novo: "Novo",
@@ -278,6 +287,53 @@ export type Conversation = {
   updated_at: string;
 };
 export type AssistantRule = { id: number; text: string; source: string };
+export type InferenceMetrics = {
+  output_tokens?: number;
+  input_tokens?: number;
+  tokens_per_second?: number;
+  generation_seconds?: number;
+  prompt_seconds?: number;
+  load_seconds?: number;
+  total_seconds?: number;
+  first_token_seconds?: number | null;
+  wall_seconds?: number;
+};
+export type AssistantRecord = {
+  id: number;
+  conversation_id: number | null;
+  kind: string;
+  status: string;
+  model: string;
+  detail: string;
+  metrics: InferenceMetrics;
+  skills: string[];
+  created_at: string;
+  finished_at: string | null;
+};
+export type AssistantSkill = {
+  id: string;
+  name: string;
+  description: string;
+  keywords: string;
+  instructions: string;
+  enabled: boolean;
+  builtin: boolean;
+};
+export type AssistantDiagnostics = {
+  model: string;
+  context: number;
+  keep_alive: string;
+  available: boolean;
+  record_limit: number;
+  skills_per_request: number;
+  loaded: {
+    name: string;
+    size: number;
+    size_vram: number;
+    context_length: number;
+    expires_at: string;
+  }[];
+};
 export type ChatAction = {
   kind: "reminder" | "demand";
   id: number;
@@ -295,6 +351,7 @@ export async function conversationStream(
     rule: (rule: AssistantRule) => void;
     done: (conversation?: Conversation) => void;
     action?: (result: ChatAction) => void;
+    metrics?: (result: InferenceMetrics) => void;
     front_id?: number;
     attachments?: number[];
     task?: "next_messages";
@@ -328,6 +385,7 @@ export async function conversationStream(
       if (item.delta) on.delta(item.delta);
       if (item.rule) on.rule(item.rule);
       if (item.action) on.action?.(item.action);
+      if (item.metrics) on.metrics?.(item.metrics);
       if (item.done) {
         finished = true;
         on.done(item.conversation);

@@ -52,6 +52,7 @@
   --sidebar: 240px;
   --assistant: 360px;
   --shadow-overlay: 0 24px 64px #0d213a2e;
+  --backdrop: #0d213a99;
 
   font-family: var(--font-body);
   font-size: var(--text-body);
@@ -1542,7 +1543,9 @@ input[type="color"] {
   animation-delay: 0.4s;
 }
 @keyframes typingBounce {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
     opacity: 0.4;
   }
@@ -1832,6 +1835,212 @@ progress {
   grid-template-columns: 1fr 1fr;
 }
 
+/* Conversas, registros locais e skills */
+.assistant-workspace {
+  display: grid;
+  gap: var(--s5);
+  min-width: 0;
+}
+.assistant-tabs {
+  display: flex;
+  gap: var(--s2);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--s3);
+}
+.assistant-tabs [aria-selected="true"] {
+  background: var(--navy);
+  color: var(--on-navy);
+  border-color: var(--navy);
+}
+.assistant-workspace .full-chat,
+.assistant-workspace .conversations {
+  height: calc(100vh - 280px);
+}
+.assistant-tools .panel-head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.assistant-tools .panel-body {
+  display: grid;
+  gap: var(--s5);
+}
+.assistant-tools p {
+  max-width: 72ch;
+}
+.assistant-tools .form-grid {
+  align-items: start;
+}
+.ai-diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s5);
+}
+.ai-diagnostic-grid article {
+  display: grid;
+  align-content: start;
+  gap: var(--s2);
+  padding-block: var(--s4);
+  border-block: 1px solid var(--divider);
+  overflow-wrap: anywhere;
+}
+.ai-diagnostic-grid strong {
+  font-family: var(--font-mono);
+  font-size: var(--text-subtitle);
+}
+.ai-diagnostic-grid small,
+.ai-diagnostic-grid span {
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.ai-last-activity {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s4);
+  border-left: var(--s1) solid var(--navy);
+  background: var(--subtle);
+}
+.ai-last-activity small,
+.ai-last-activity span {
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.ai-record-list {
+  display: grid;
+}
+.ai-record {
+  display: grid;
+  gap: var(--s2);
+  padding-block: var(--s4);
+  border-bottom: 1px solid var(--divider);
+}
+.ai-record > small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.ai-record .link {
+  justify-self: start;
+}
+.ai-skill-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s5);
+}
+.ai-skill {
+  display: grid;
+  align-content: start;
+  gap: var(--s3);
+  padding-block: var(--s4);
+  border-bottom: 1px solid var(--divider);
+  overflow-wrap: anywhere;
+}
+.ai-skill > small {
+  color: var(--muted);
+}
+.ai-skill details,
+.response-metrics {
+  font-size: var(--text-caption);
+}
+.ai-skill summary,
+.response-metrics summary {
+  cursor: pointer;
+  min-height: var(--control-sm);
+  align-content: center;
+}
+.response-metrics {
+  margin-top: var(--s3);
+  color: var(--muted);
+  white-space: normal;
+  font-family: var(--font-body);
+}
+.response-metrics summary {
+  font-family: var(--font-mono);
+}
+.response-metrics dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s3);
+  padding-block: var(--s3);
+}
+.response-metrics dl > div {
+  display: grid;
+  gap: var(--s1);
+}
+.response-metrics dt {
+  font-size: var(--text-caption);
+}
+.response-metrics dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  color: var(--navy);
+}
+button.attach-chip.static:not(:disabled) {
+  cursor: zoom-in;
+}
+dialog.image-viewer {
+  width: min(1100px, calc(100% - var(--s8)));
+  max-height: 92vh;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-dialog);
+  color: var(--navy);
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+}
+.image-viewer::backdrop {
+  background: var(--backdrop);
+}
+.image-viewer header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5);
+  border-bottom: 1px solid var(--divider);
+}
+.image-viewer header > div {
+  display: grid;
+  gap: var(--s1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.image-viewer header small {
+  color: var(--muted);
+}
+.image-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s3) var(--s5);
+}
+.image-viewer-toolbar > span {
+  min-width: var(--control);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+.image-viewer-stage {
+  height: 65vh;
+  overflow: auto;
+  padding: var(--s4);
+  background: var(--bg);
+}
+.image-viewer-stage img {
+  display: block;
+  max-width: none;
+  object-fit: contain;
+  margin-inline: auto;
+}
+@media (max-width: 860px) {
+  .ai-diagnostic-grid,
+  .ai-skill-grid {
+    grid-template-columns: 1fr;
+  }
+  .assistant-tabs {
+    flex-wrap: wrap;
+  }
+}
+
 /* Sobreposições */
 .toast {
   position: fixed;
@@ -1994,7 +2203,8 @@ dialog.modal::backdrop,
 }
 
 @keyframes aiBadgePulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 transparent;
   }
   50% {
@@ -2012,7 +2222,9 @@ dialog.modal::backdrop,
 /* 2. Elevated hover on cards */
 .kanban-card,
 .social-card {
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  transition:
+    box-shadow 150ms ease,
+    transform 150ms ease;
 }
 .kanban-card:hover,
 .social-card:hover {
@@ -2035,12 +2247,17 @@ dialog.modal::backdrop,
 .toast.leaving {
   opacity: 0;
   transform: translate(-50%, var(--s3));
-  transition: opacity 200ms ease, transform 200ms ease;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
 }
 
 /* 5. Smooth sidebar button transitions */
 .sidebar nav button {
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 /* 6. AI badge pulse */

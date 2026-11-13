@@ -302,6 +302,35 @@ class ChatTurn(SQLModel, table=True):
     created_at: datetime = Field(default_factory=now)
 
 
+class ChatMetrics(SQLModel, table=True):
+    answer_id: int = Field(primary_key=True)
+    data: str = '{}'
+
+
+class AssistantRun(SQLModel, table=True):
+    __table_args__ = {'sqlite_autoincrement': True}
+    id: int | None = Field(default=None, primary_key=True)
+    conversation_id: int | None = Field(default=None, index=True)
+    answer_id: int | None = Field(default=None, index=True)
+    kind: str = 'chat'
+    status: str = 'running'
+    model: str = ''
+    detail: str = ''
+    metrics: str = '{}'
+    skills: str = '[]'
+    created_at: datetime = Field(default_factory=now)
+    finished_at: datetime | None = None
+
+
+class AssistantSkill(SQLModel, table=True):
+    __table_args__ = {'sqlite_autoincrement': True}
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    description: str = ''
+    keywords: str
+    instructions: str
+
+
 class ChatAttachment(SQLModel, table=True):
     """Arquivo ou imagem anexado a uma pergunta. Lido e guardado só neste computador."""
     id: int | None = Field(default=None, primary_key=True)

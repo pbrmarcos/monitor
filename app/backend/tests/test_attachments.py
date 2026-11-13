@@ -138,6 +138,14 @@ def test_documents_and_images_reach_the_model_once_and_stay_in_history(tmp_path,
         assert 'Cláusula 1: pagamento em 30 dias' in joined and 'não é reenviada' in joined
         assert seen[1]['options']['num_ctx'] == 16384
 
+        ask(api, conversation, 'Confira o valor na imagem anterior')
+        assert seen[2]['messages'][-1]['images'] == [encode(PNG)]
+        assert 'IMAGEM RETOMADA' in seen[2]['messages'][-1]['content']
+
+        other = api.post('/assistant/conversations', json={'mode': 'general'}).json()['id']
+        ask(api, other, 'Confira a imagem anterior')
+        assert not any('images' in item for item in seen[3]['messages'])
+
         shown = api.get(f'/assistant/conversations/{conversation}/messages').json()
         assert [item['name'] for item in shown[0]['attachments']] == ['contrato.docx', 'print.png'] and 'attachments' not in shown[2]
 
@@ -193,7 +201,7 @@ def test_next_messages_task_uses_the_conversation_and_the_users_style(tmp_path, 
         _, events = ask(api, conversation, 'Sugira as próximas mensagens. Crie um lembrete Teste amanhã às 9h',
                         attachments=[image['id']], task='next_messages')
         system = seen[0]['messages'][0]['content']
-        assert 'balões do usuário ficam à direita' in system and 'Opção 1:' in system and 'Informal e direto' in system
+        assert 'a posição dos balões sozinha não confirma' in system and 'Opção 1:' in system and 'Informal e direto' in system
         assert seen[0]['messages'][-1]['images'] == [encode(PNG)]
         assert 'Opção 2: Olá! Fica pronto dia 18.' in ''.join(event.get('delta', '') for event in events)
         with Session(api.app.state.engine) as db:

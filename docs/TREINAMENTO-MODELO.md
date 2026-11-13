@@ -1,77 +1,32 @@
-# Guia de Configuração e Treinamento do Modelo Local (Ollama + Monitor)
+# Qwen 3.5 no Monitor: personalização, memória e velocidade
 
-Este guia ensina como deixar seu modelo local perfeitamente calibrado para atender suas necessidades, falar no seu tom, compreender imagens, continuar conversas e operar integrado ao Monitor.
+O modelo alvo é `qwen3.5:4b-q4_K_M`. Ele já aceita texto e imagens. Não é necessário baixar Qwen 2.5 VL para ler prints. A personalização descrita aqui não modifica os pesos e não garante respostas corretas.
 
----
+## O que o aplicativo fornece
 
-## 1. Como a Inteligência do Monitor Funciona
+- Instruções sobre o Monitor e suas quatro frentes; dados atuais de demandas, e-mails prioritários, lembretes e sites nas conversas de trabalho. Isso é contexto consultado no banco, não um mecanismo completo de busca semântica.
+- Perfil de escrita configurado em **Seu jeito de escrever**, utilizado também no chat. O perfil descreve o estilo; não treina os pesos nem copia assinaturas para toda resposta.
+- Preferências explícitas salvas como regras editáveis. Mensagens e documentos não viram regras automaticamente.
+- Até 24 turnos recentes, limitados pelo espaço disponível. Conversas antigas permanecem no banco, mas o modelo não recebe todo o histórico a cada pergunta.
+- Anexos de texto e imagens. Uma referência explícita como “na imagem anterior” pode reenviar a última imagem dos seis turnos anteriores da mesma conversa. Para imagens mais antigas, anexe novamente.
+- Ações específicas implementadas pelo aplicativo. Conhecer uma ação não dá ao modelo acesso irrestrito ao computador ou a serviços externos.
 
-O Monitor utiliza uma arquitetura em 4 camadas para que o modelo entenda seu trabalho sem você precisar treinar pesos do zero:
+## Velocidade
 
-1. **Contexto Dinâmico (RAG Local)**: A cada mensagem de trabalho, o Monitor injeta em tempo real suas **demandas abertas** ([D...]), **e-mails prioritários** ([E...]), **lembretes** ([L...]) e **status dos sites** ([S...]).
-2. **Aprendizado do seu Estilo de Escrita**: O Monitor analisa seus e-mails enviados (em *Configurações → Seu jeito de escrever*) e extrai como você cumprimenta, se despede, o nível de formalidade e expressões típicas. Esse perfil agora é injetado diretamente no assistente em todas as conversas.
-3. **Memória de Preferências Duradouras**: Quando você diz no chat *"A partir de agora, responda sempre em tópicos curtos"* ou *"Sempre termine com uma pergunta"*, o Monitor memoriza essa regra na aba de regras aprendidas.
-4. **Comandos Diretos Operacionais**: Se você disser *"Crie um lembrete Reunião amanhã às 15h"*, o sistema executa a ação nativamente no banco antes de consultar o modelo.
+O Monitor usa contexto de 16.384 tokens para chat, triagem e respostas, com `keep_alive: 30m`. Antes, alternava entre 8.192 e 16.384, o que provocou recargas nos testes. Em **Configurações → IA local**, a pré-carga pode ser desativada e o botão **Preparar modelo** permite carregar o modelo manualmente.
 
----
+A preparação automática ocorre após a inicialização e a cada dez minutos. Se outro modelo ou contexto estiver carregado, ela é adiada para não substituí-lo automaticamente. A primeira carga ainda custa tempo e ocupa VRAM; preparar em segundo plano antecipa essa espera. Desativar a opção interrompe as próximas pré-cargas; não descarrega imediatamente um modelo em uso.
 
-## 2. Visão Computacional (Receber Imagens e Entender)
+Medição local em 13/11/2026: RTX 3060 Laptop de 6 GB, aproximadamente 16 GB de RAM, Ollama 0.40.16. Alternar os contextos custou aproximadamente 8 segundos de carga. Com contexto único de 16.384 e modelo já carregado, o primeiro texto apareceu em 0,63 s para pergunta curta, 2,40 s com 50 demandas fictícias, 1,43 s para imagem e 0,24 s no retorno ao texto. As cargas nessas quatro chamadas ficaram entre 0,008 e 0,011 s. O modelo leu corretamente valor e data da imagem sintética. A demora relatada de 30–60 segundos não foi reproduzida; esses números não são garantia para documentos grandes, fila de tarefas ou inicialização fria. Os scripts temporários da medição usam exclusivamente dados fictícios.
 
-> [!IMPORTANT]
-> Modelos puros de texto (como `qwen2.5:3b` ou `qwen3.5:4b-q4_K_M`) **não têm olhos nativos** no Ollama — se você enviar imagens a um modelo de texto puro, o Ollama rejeita com erro.
-> Para que o Ollama veja e entenda **imagens, prints de WhatsApp/Instagram, comprovantes e fotos**, utilize a versão de visão oficial da família Qwen: **`qwen2.5-vl:3b`** ou **`qwen2.5-vl:7b`**.
+## Treinamento real dos pesos
 
-### Como baixar o modelo com visão no Ollama:
-No terminal do Windows (PowerShell ou CMD):
-```powershell
-ollama run qwen2.5-vl:3b
-```
-Depois, nas Configurações do Monitor (*Configurações → IA local*), defina o modelo como `qwen2.5-vl:3b`.
+Ainda não foi executado fine-tuning. Os Modelfiles opcionais apenas definem parâmetros e instruções para uso direto no Ollama; o Monitor fornece suas próprias instruções durante as chamadas.
 
----
+Para treinar o estilo, precisamos selecionar exemplos reais de pergunta, contexto e resposta desejada; remover credenciais e dados desnecessários; separar conversas inteiras entre treino e avaliação; comparar o modelo base com o adaptado em textos, imagens e ações. E-mails enviados ajudam no estilo, mas sozinhos não ensinam uma conversa de assistente. Dados comerciais atuais devem continuar no banco, pois mudam.
 
-## 3. Criando seu Modelo Customizado no Ollama (Modelfile)
+O guia específico do Unsloth recomenda cerca de **10 GB de VRAM para LoRA BF16 do Qwen3.5 4B** e desaconselha QLoRA de quatro bits nessa família. A placa de 6 GB serve para esta inferência quantizada, mas não atende essa receita recomendada de treino. Treinar exigirá outra GPU adequada ou uma estratégia diferente validada. Nenhum e-mail foi exportado para treinamento ou enviado a uma GPU externa nesta etapa.
 
-Criamos dois arquivos prontos em `scripts/` para você criar seus modelos personalizados no Ollama com 1 comando:
+Antes de usar um modelo adaptado, é necessário medir se melhora o estilo sem prejudicar leitura de imagens, precisão e comportamento das ações. Um modelo de 4B tem limites que personalização e treinamento não eliminam.
 
-### Opção A: Modelo de Texto Otimizado para Negócios
-```powershell
-ollama create monitor-qwen -f scripts/Modelfile.monitor-qwen
-```
-Esse comando cria o modelo `monitor-qwen` já com:
-- Parâmetros calibrados (`temperature 0.25`, `num_ctx 8192`, `top_p 0.9`);
-- Persona de copiloto comercial focada no Monitor e nas 4 frentes;
-- Sem respostas vagas ou robóticas.
-
-### Opção B: Modelo Multimodal com Visão para Anexos e Imagens
-```powershell
-ollama create monitor-vision -f scripts/Modelfile.monitor-vision
-```
-Esse comando cria o modelo `monitor-vision` capaz de:
-- Ler prints de conversas (WhatsApp/Instagram) e distinguir os dois lados;
-- Ler recibos, tabelas e notas fiscais;
-- Sugerir respostas prontas Opção 1 (curta) e Opção 2 (completa).
-
----
-
-## 4. Como Ensinar o Modelo a "Falar Como Você Fala"
-
-1. **Conecte suas contas de e-mail**:
-   - Em *Configurações → Contas de e-mail*, cadastre as contas que você usa para trabalhar.
-2. **Ative o perfil de estilo**:
-   - Em *Configurações → Seu jeito de escrever*, clique em **Analisar estilo**. O Monitor lê seus últimos e-mails enviados e monta sua identidade verbal.
-   - O assistente adotará automaticamente essa identidade em todas as conversas do dia a dia.
-3. **Use regras explícitas no chat**:
-   - Na conversa com o assistente, peça preferências como:
-     - *"Prefira respostas diretas e em tópicos."*
-     - *"Quando for proposta comercial, use sempre um tom cordial mas sem formalidade excessiva."*
-   - O Monitor salva essas memórias na barra lateral do Assistente (você pode editar ou apagar quando quiser).
-
----
-
-## 5. Dicas de Produtividade no Chat
-
-- **Priorização do dia**: *"O que tenho de mais urgente para hoje?"*
-- **Acompanhamento de cliente**: *"Qual o status da proposta da Ana na Rocha Comercial?"*
-- **Ação direta**: *"Crie um lembrete Retornar para Pedro amanhã às 10h"*
-- **Análise de imagem**: Arraste um print de conversa para o chat e clique em *"Sugerir próximas mensagens"*.
+Fontes: [Qwen 3.5 no Ollama](https://ollama.com/library/qwen3.5), [pré-carga e keep_alive](https://docs.ollama.com/faq), [Modelfile](https://docs.ollama.com/modelfile), [fine-tuning do Qwen3.5](https://unsloth.ai/docs/models/qwen3.5/fine-tune).

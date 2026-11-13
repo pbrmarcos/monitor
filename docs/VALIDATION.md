@@ -1,6 +1,14 @@
 # Validação
 
-Situação em 13/11/2026, versão `0.9.1-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 13/11/2026, versão `0.10.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Imagens, registros e skills (0.10.0-alpha.1)
+
+146 testes de backend e 22 de interface passaram localmente; TypeScript/Vite compilou. A cobertura inclui autenticação do visualizador, persistência das métricas por resposta, limpeza dos logs sem apagar métricas do chat, exclusão da conversa, retenção limitada, recuperação de registros interrompidos, ferramentas locais sem métricas inventadas e skills selecionáveis com limites de tamanho e quantidade.
+
+O teste visual com dados fictícios passou em 1400, 860 e 600 px, incluindo abertura de imagem enviada, zoom, Esc, métricas e novas abas, sem erros de página ou transbordamento horizontal. No teste integrado com API, SQLite e Ollama reais, o Qwen3.5 4B Q4_K_M leu corretamente uma imagem sintética com valor e prazo; as métricas foram persistidas e o visualizador recuperou a imagem. Foram observados 75,49 tokens/s de geração; a chamada total levou 7,36 s, incluindo 6,01 s de carga do modelo. Isso não é uma garantia de desempenho nem uma avaliação geral de qualidade.
+
+Mantido o modelo escolhido para a GPU de 6 GB. As skills são instruções locais, não treinamento dos pesos nem carregamento de modelos extras. O teste do executável empacotado também passou a verificar registros de ações, cadastro/desativação de skill e recuperação de imagem. A validação do novo instalador é feita pelo workflow Windows da release.
 
 ## Interface e datas de e-mails (0.9.1-alpha.1)
 

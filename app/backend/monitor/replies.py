@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from . import ai, inbox
+from .llm_runtime import CONTEXT, KEEP_ALIVE
 from .models import Email, EmailAccount, EmailDraft, EmailStyle, SentEmail, as_utc, now
 
 SAMPLE_LIMIT = 15
@@ -65,17 +66,17 @@ def _post(payload: dict) -> dict:
 
 
 def _text(model: str, system: str, user: str) -> str:
-    data = _post({'model': model, 'stream': False, 'think': False, 'keep_alive': '10m',
+    data = _post({'model': model, 'stream': False, 'think': False, 'keep_alive': KEEP_ALIVE,
                   'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}],
-                  'options': {'num_ctx': 8192, 'temperature': 0.2}})
+                  'options': {'num_ctx': CONTEXT, 'temperature': 0.2}})
     return str((data.get('message') or {}).get('content') or '').strip()
 
 
 def _two(model: str, system: str, user: str) -> list[str]:
     """Pede duas opções em JSON; uma resposta fora do formato ganha uma segunda tentativa."""
-    payload = {'model': model, 'stream': False, 'think': False, 'keep_alive': '10m', 'format': TWO,
+    payload = {'model': model, 'stream': False, 'think': False, 'keep_alive': KEEP_ALIVE, 'format': TWO,
                'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}],
-               'options': {'num_ctx': 8192, 'temperature': 0.4}}
+               'options': {'num_ctx': CONTEXT, 'temperature': 0.4}}
     for _ in range(2):
         try:
             answer = json.loads((_post(dict(payload)).get('message') or {}).get('content') or '')

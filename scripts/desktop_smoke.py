@@ -1,5 +1,6 @@
 """Validate packaged sidecar handshake, authentication and persistent CRUD."""
 import json
+import base64
 import os
 from pathlib import Path
 import subprocess
@@ -51,9 +52,21 @@ with tempfile.TemporaryDirectory() as folder:
         assert saved_reminders[0]['text'] == 'Consulta de exemplo'
         rule = assistant_call('/assistant/rules', 'POST', {'text': 'Responder sempre com clareza'})
         assert any(item['id'] == rule['id'] for item in assistant_call('/assistant/rules'))
+        records = assistant_call('/assistant/records')
+        assert records[0]['kind'] == 'action' and records[0]['status'] == 'completed' and records[0]['metrics'] == {}
+        assert len(assistant_call('/assistant/skills')) == 4
+        custom = assistant_call('/assistant/skills', 'POST', {'name': 'Skill de teste', 'keywords': 'exemplo', 'instructions': 'Confira os dados antes de responder.'})
+        updated = assistant_call('/assistant/skills/' + custom['id'], 'PUT', {'enabled': False})
+        assert next(item for item in updated if item['id'] == custom['id'])['enabled'] is False
+        assistant_call('/assistant/skills/' + custom['id'], 'DELETE')
+        image_data = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
+        image = assistant_call('/assistant/attachments', 'POST', {'name': 'synthetic.png', 'data': image_data})
+        preview = assistant_call(f"/assistant/attachments/{image['id']}/preview")
+        assert base64.b64decode(preview['src'].split(',')[1]) == base64.b64decode(image_data)
+        assistant_call(f"/assistant/attachments/{image['id']}", 'DELETE')
         assistant_call(f"/assistant/conversations/{conversation['id']}", 'DELETE')
         assistant_call(f"/assistant/rules/{rule['id']}", 'DELETE')
-        print('Packaged backend: handshake, auth, demands, conversations, preferences and local database OK')
+        print('Packaged backend: handshake, auth, demands, conversations, preferences, records, skills, image preview and local database OK')
     finally:
         child.stdin.close()
         try:

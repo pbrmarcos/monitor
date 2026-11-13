@@ -12,7 +12,7 @@ from typing import Literal
 
 import httpx
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,8 +27,9 @@ from . import ai, replies, voice as voice_module, assistant, gcal, inbox, mail, 
 from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, EmailDraft, EmailStyle, SentEmail, Event, Setting, Suggestion, as_utc, now
 from .models import Conversation, ChatTurn, AssistantRule, Reminder
 from .secrets_store import KeyringStore, MemoryStore, SecretError
+from .llm_runtime import ModelRuntime
 
-VERSION = '0.9.1-alpha.1'
+VERSION = '0.10.0-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
@@ -58,6 +59,7 @@ class DemandInput(BaseModel):
 class SettingsInput(BaseModel):
     model: str | None = Field(default=None, min_length=1, max_length=100, pattern=r'^[a-zA-Z0-9_.:/-]+$')
     priority_senders: list[str] | None = Field(default=None, max_length=100)
+    keep_model_warm: bool | None = None
 
 
 class ModelInput(BaseModel):
@@ -135,7 +137,7 @@ def migrate(engine):
             if name not in social_columns:
                 connection.execute(text(f'ALTER TABLE socialprofile ADD COLUMN {name} {definition}'))
         preserve_identifiers(connection, (Demand, Reminder))
-        for version in (1, 2, 3, 4, 5, 6, 7, 8, 9):  # 9: ações do assistente e lembretes no Google
+        for version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):  # 10: registros técnicos e skills locais
             connection.execute(text('INSERT OR IGNORE INTO schema_migrations VALUES (:v)'), {'v': version})
 
 
@@ -200,6 +202,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     security = HTTPBearer(auto_error=False)
     vault = secret_store or (MemoryStore() if demo else KeyringStore())
     scheduler = None
+    model_runtime = ModelRuntime(engine, ai.DEFAULT_MODEL, ai.OLLAMA)
     voice = voice_module.Voice(folder, voice_engine, voice_transport, voice_installed)
 
     def authorize(credentials: HTTPAuthorizationCredentials | None = Depends(security)):
@@ -236,6 +239,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     async def lifespan(app):
         nonlocal scheduler
         migrate(engine)
+        assistant.assistant_records.reset_interrupted(engine)
         with Session(engine) as db:
             if demo and not db.get(Setting, 'demo_seeded'):
                 seed_demo(db)
@@ -248,6 +252,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
             scheduler.add_job(lambda: reminders.generate(engine, demo=demo), IntervalTrigger(seconds=10), next_run_time=start)
             scheduler.add_job(voice.unload_idle, IntervalTrigger(minutes=5), next_run_time=start + timedelta(minutes=5))
             if not demo:
+                scheduler.add_job(model_runtime.launch, IntervalTrigger(minutes=10), next_run_time=start, id='model-preload')
                 scheduler.add_job(lambda: sites.check_all(engine), IntervalTrigger(minutes=2), next_run_time=start + timedelta(seconds=2))
                 scheduler.add_job(lambda: forms.sync(engine, vault), IntervalTrigger(minutes=1), next_run_time=start + timedelta(seconds=4))
                 scheduler.add_job(lambda: inbox.sync_all(engine, vault, connector), IntervalTrigger(minutes=2), next_run_time=start)
@@ -268,6 +273,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     app.state.engine = engine
     app.state.vault = vault
     app.state.voice = voice
+    app.state.model_runtime = model_runtime
     app.state.open_browser = gcal.webbrowser.open
     app.include_router(agenda_api.router(engine, session, demo))
     app.include_router(sites.router(engine, session, demo))
@@ -383,17 +389,32 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
 
     @app.get('/settings')
     def settings(db: Session = Depends(session)):
-        return {'model': inbox.setting(db, 'model', ai.DEFAULT_MODEL), 'priority_senders': inbox.priority_senders(db)}
+        return {'model': inbox.setting(db, 'model', ai.DEFAULT_MODEL), 'priority_senders': inbox.priority_senders(db),
+                'keep_model_warm': inbox.setting(db, 'keep_model_warm', 'true') == 'true'}
 
     @app.put('/settings')
-    def save_settings(payload: SettingsInput, db: Session = Depends(session)):
+    def save_settings(payload: SettingsInput, background: BackgroundTasks, db: Session = Depends(session)):
         if payload.model is not None:
             db.merge(Setting(key='model', value=payload.model))
         if payload.priority_senders is not None:
             cleaned = sorted({value.strip().lower()[:200] for value in payload.priority_senders if value.strip()})
             db.merge(Setting(key='priority_senders', value=json.dumps(cleaned)))
+        if payload.keep_model_warm is not None:
+            db.merge(Setting(key='keep_model_warm', value=str(payload.keep_model_warm).lower()))
         db.commit()
+        if workers and not demo and (payload.model is not None or payload.keep_model_warm is True):
+            background.add_task(model_runtime.launch)
         return settings(db)
+
+    @app.get('/ollama/runtime')
+    def runtime_status():
+        return model_runtime.status()
+
+    @app.post('/ollama/warm')
+    def prepare_model():
+        if demo:
+            raise HTTPException(409, 'A pré-carga de modelos reais fica indisponível na demonstração.')
+        return model_runtime.prepare(force=True)
 
     @app.get('/ollama')
     async def ollama():

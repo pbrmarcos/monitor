@@ -15,6 +15,7 @@ import {
   AccountInput,
   api,
   AppSettings,
+  ModelRuntime,
   Calendar,
   Ollama,
   pullModel,
@@ -716,6 +717,14 @@ function GoogleCalendar({ m }: { m: Monitor }) {
 }
 
 function LocalAi({ m }: { m: Monitor }) {
+  const [runtime, setRuntime] = useState<ModelRuntime | null>(null);
+  const [warming, setWarming] = useState(false);
+  useEffect(() => {
+    if (m.connected)
+      void api<ModelRuntime>("/ollama/runtime")
+        .then(setRuntime)
+        .catch(() => {});
+  }, [m.connected, m.settings.model]);
   const [model, setModel] = useState(m.settings.model);
   const [download, setDownload] = useState("");
   const [pulling, setPulling] = useState(false);
@@ -750,6 +759,48 @@ function LocalAi({ m }: { m: Monitor }) {
             disabled={!m.connected}
           />
         </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={m.settings.keep_model_warm ?? true}
+            disabled={!m.connected || m.preview}
+            onChange={(e) =>
+              void api<AppSettings>("/settings", "PUT", {
+                keep_model_warm: e.target.checked,
+              })
+                .then(m.setSettings)
+                .catch(m.fail)
+            }
+          />
+          Manter IA preparada enquanto o Monitor estiver aberto
+        </label>
+        <p className="small muted">
+          A preparação acontece em segundo plano e mantém memória da GPU
+          ocupada. Após sair do Monitor, o modelo pode permanecer carregado por
+          até 30 minutos.
+        </p>
+        <div className="button-row">
+          <button
+            disabled={!m.connected || m.preview || warming || !installed}
+            onClick={async () => {
+              setWarming(true);
+              try {
+                setRuntime(await api<ModelRuntime>("/ollama/warm", "POST"));
+              } catch (e) {
+                m.fail(e);
+              } finally {
+                setWarming(false);
+              }
+            }}
+          >
+            {warming ? "Preparando…" : "Preparar modelo"}
+          </button>
+        </div>
+        {runtime && (
+          <p role="status" className="small">
+            {runtime.detail}
+          </p>
+        )}
         <div className="button-row">
           <button
             className="primary"

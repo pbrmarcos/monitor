@@ -4,6 +4,7 @@ from typing import Literal
 
 import httpx
 from pydantic import BaseModel, Field, ValidationError, field_validator
+from .llm_runtime import CONTEXT, KEEP_ALIVE
 
 OLLAMA = 'http://127.0.0.1:11434'
 INPUT_LIMIT = 6000
@@ -65,14 +66,14 @@ def _describe(sender: str, account: str, subject: str, body: str) -> str:
 
 
 def analyze(sender: str, account: str, subject: str, body: str, model: str, today: date,
-            examples: list[dict] | None = None, num_ctx: int = 8192) -> Analysis:
+            examples: list[dict] | None = None, num_ctx: int = CONTEXT) -> Analysis:
     """Chama o modelo local. Credenciais nunca fazem parte do prompt."""
     messages = [{'role': 'system', 'content': f'{SYSTEM} Hoje é {today.isoformat()}.'}]
     for example in examples or []:
         messages.append({'role': 'user', 'content': _describe(example['sender'], example['account'], example['subject'], example['body'][:400])})
         messages.append({'role': 'assistant', 'content': example['answer']})
     messages.append({'role': 'user', 'content': _describe(sender, account, subject, body)})
-    payload = {'model': model, 'messages': messages, 'stream': False, 'think': False, 'keep_alive': '10m',
+    payload = {'model': model, 'messages': messages, 'stream': False, 'think': False, 'keep_alive': KEEP_ALIVE,
                'format': Analysis.model_json_schema(), 'options': {'num_ctx': num_ctx, 'temperature': 0}}
     try:
         with httpx.Client(timeout=httpx.Timeout(180, connect=3), trust_env=False) as client:
