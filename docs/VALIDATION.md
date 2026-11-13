@@ -1,6 +1,20 @@
 # Validação
 
-Situação em 12/11/2026, versão `0.7.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 12/11/2026, versão `0.8.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Ações reais pelo chat (0.8.0-alpha.1)
+
+As ações têm interpretação determinística de pedidos diretos e confirmação do banco. Os testes reproduzem o formato do pedido da imagem com um título sintético, guardam o lembrete no horário correto de São Paulo e verificam que o envio ao Google é marcado como pendente quando a conta não está conectada. Criar, reagendar, concluir e cancelar são testados sem chamar o Ollama. Demandas são criadas com frente explícita ou selecionada; mudança de etapa, prioridade e data usam o identificador do registro.
+
+A suíte de backend passou com 107 testes, além dos 7 testes de componentes, TypeScript/Vite e da navegação em três larguras. Os casos cobrem dados faltantes completados em outra mensagem, cancelamento de pedido pendente, datas e horários inválidos/passados, referência a registro inexistente, duplicação por repetição, troca de conversa, mensagens encaminhadas e saída do modelo sem autoridade para executar ações. Um novo título explícito substitui o pedido pendente e o modo de demonstração não envia eventos, mesmo com token simulado.
+
+O Google simulado verifica eventos com início, fim e fuso, duração, repetição idempotente, reagendamento, cancelamento e serviço ocupado/indisponível sem falsa confirmação. Uma sincronização antiga não confirma um novo horário ainda não enviado. Nenhum evento foi criado numa conta Google real.
+
+A integração pela interface usou HTTP, SQLite e o scheduler reais com um cofre em memória: criou o lembrete no chat, abriu pela confirmação, recarregou a tela, verificou persistência e concluiu por outro pedido no chat. A captura foi inspecionada. Em teste separado com Qwen real e banco isolado, a conversa geral identificou corretamente o título e o horário confirmados pela ação anterior. Isso não é uma estimativa de precisão de linguagem natural.
+
+Identificadores de demandas e lembretes não são reutilizados após exclusão; a migração mantém os registros existentes e os testes cobrem bancos antigos. Uma referência histórica a uma demanda excluída não pode alterar outra demanda recém-criada. Excluir a conversa mantém os registros criados e remove o histórico de mensagens e ações dessa conversa.
+
+O [build Windows de 71dae0b](https://github.com/pbrmarcos/monitor/actions/runs/43347321949) passou com os testes, a criação de um lembrete pelo chat no backend empacotado, scheduler, Chrome, frontend, Rust, instaladores NSIS/MSI e assinaturas do atualizador. Os pacotes 0.8.0-alpha.1 são os artefatos dessa execução. A instalação efetiva pelo botão continua pendente de validação manual no aplicativo instalado.
 
 ## Instagram pelo Chrome oculto (0.7.0-alpha.1)
 

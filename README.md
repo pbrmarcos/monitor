@@ -15,7 +15,7 @@ Central de operação pessoal com IA local para reunir demandas, e-mails, acompa
 - Catalogar arquivos locais e pastas sincronizadas do OneDrive.
 - Conversar com um assistente local que consulta registros e executa pedidos diretos de lembretes e demandas.
 
-A IA sugere; ações dependem das regras e confirmações da interface. E-mails não serão enviados, apagados ou movidos nesta primeira linha de desenvolvimento.
+Pedidos diretos no assistente criam e alteram lembretes e demandas com resultado registrado. A triagem de e-mails continua gerando sugestões para revisão. E-mails não são enviados, apagados ou movidos.
 
 ## Referências
 
