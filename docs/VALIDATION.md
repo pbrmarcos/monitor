@@ -1,8 +1,16 @@
 # Validação
 
-Situação em 12/11/2026, versão `0.8.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 13/11/2026, versão `0.9.1-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
 
-## Respostas aprendidas, anexos e voz (alterações ainda não publicadas)
+## Interface e datas de e-mails (0.9.1-alpha.1)
+
+135 testes de backend passaram. As alterações do Antigravity no commit 1244e29 também passaram pela compilação TypeScript/Vite e pelos 17 testes de componentes. O novo caso verifica a extração da data escrita no trecho literal citado pela IA, mantendo uma renovação informativa como informativa.
+
+A versão foi incrementada para publicar as alterações num novo instalador; o commit sozinho não substitui o aplicativo instalado. Aplicativo, frontend, backend e pacote Python foram alinhados em 0.9.1-alpha.1 (Python 0.9.1a1; MSI 0.9.1.1). A conferência do atualizador consulta a release fixa `updates`; a versão instalada só muda depois da instalação e da reabertura do aplicativo.
+
+O [build Windows de 7505b1f](https://github.com/pbrmarcos/monitor/actions/runs/43473193612) passou com 135 testes de backend, 17 de interface, backend empacotado, scheduler, Chrome, carregamento do motor de voz, leitura de PDF/Word, frontend, Rust, instaladores NSIS/MSI e assinaturas do atualizador. O manifesto público foi consultado sem autenticação e anuncia 0.9.1-alpha.1; os dois instaladores responderam à consulta de disponibilidade. A instalação efetiva e a mudança do número no aplicativo instalado ainda exigem validação manual.
+
+## Respostas aprendidas, anexos e voz (0.9.0-alpha.1)
 
 Em 13/11/2026: 134 testes de backend e 17 de componentes passaram; TypeScript e Vite compilaram; o teste visual e o integrado (API e SQLite reais, Ollama real) passaram. Funcionamento e limites em [RESPOSTAS.md](RESPOSTAS.md) e [ANEXOS-E-VOZ.md](ANEXOS-E-VOZ.md).
 
@@ -11,7 +19,9 @@ Em 13/11/2026: 134 testes de backend e 17 de componentes passaram; TypeScript e 
 - **Voz.** Testado com motor e repositório de modelos simulados: download com SHA-256 conferido, retomada de download interrompido, modelo corrompido recusado, rede fora do ar, motor ausente, limites de áudio, descarga por inatividade e erros sem detalhes internos. **Nenhuma transcrição com modelo e fala reais foi feita**, e nenhum modelo foi baixado.
 - **Defeito encontrado no executável empacotado.** O backend desktop é iniciado com um pipe na entrada padrão e uma leitura bloqueada nele travava o carregamento das bibliotecas nativas do Whisper (só no executável e no modo do aplicativo). A espera pelo encerramento do aplicativo passou a consultar o pipe sem bloquear. Há teste automatizado que falha com o comportamento antigo, e `scripts/voice_sidecar_smoke.py` confirma no executável compilado que o motor carrega (com modelo falso, sem baixar nada) e que PDF e Word são lidos.
 - **Tamanho.** O executável do backend passou de 22 MB para cerca de 136 MB com Whisper, bibliotecas de áudio e PDF.
-- **Não validado:** transcrição real, permissão e gravação do microfone no aplicativo instalado, arrastar arquivo do Explorer para a janela instalada, contas IMAP reais e o build do instalador no GitHub Actions com as novas dependências.
+- **Não validado:** transcrição real, permissão e gravação do microfone no aplicativo instalado, arrastar arquivo do Explorer para a janela instalada e contas IMAP reais.
+
+O [build Windows da 0.9.0-alpha.1](https://github.com/pbrmarcos/monitor/actions/runs/43407857797) passou e publicou os instaladores com as dependências de voz e anexos.
 
 ## Ações reais pelo chat (0.8.0-alpha.1)
 
