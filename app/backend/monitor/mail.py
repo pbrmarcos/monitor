@@ -6,13 +6,16 @@ import imaplib
 import re
 import socket
 import ssl
-from datetime import datetime, timedelta, timezone
+from datetime import timezone
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 
 FOLDER = 'INBOX'
-FIRST_SYNC_DAYS = 30
-FIRST_SYNC_LIMIT = 200
+SENT = 'SENT'  # chave do marcador da pasta de enviados; o nome real varia por servidor
+SENT_NAMES = ('Sent', 'INBOX.Sent', 'Sent Items', 'Sent Messages', 'Enviados', 'INBOX.Enviados', 'Itens Enviados',
+              'Enviadas', '[Gmail]/Sent Mail', '[Gmail]/E-mails enviados')
+FIRST_SYNC_LIMIT = 100  # primeira coleta: as 100 mensagens mais recentes de cada pasta
+BATCH_LIMIT = 200  # coletas seguintes: lotes do mais antigo para o mais novo
 FETCH_BYTES = 262144
 BODY_LIMIT = 20000
 QUOTE_START = re.compile(
@@ -51,8 +54,12 @@ def _close(connection):
         pass
 
 
-def _examine(connection) -> int:
-    status, _ = connection.select(FOLDER, readonly=True)
+def _quote(folder: str) -> str:
+    return '"' + folder.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+
+def _examine(connection, folder: str = FOLDER) -> int:
+    status, _ = connection.select(_quote(folder) if folder != FOLDER else FOLDER, readonly=True)
     if status != 'OK':
         raise MailError('Não foi possível abrir a caixa de entrada em modo de leitura.')
     validity = connection.response('UIDVALIDITY')[1]
@@ -145,48 +152,92 @@ def parse_message(raw: bytes, uid: int, flags: str, structure: str) -> dict:
     }
 
 
+def find_sent(connection) -> str | None:
+    """Nome da pasta de enviados: primeiro pela marca \\Sent do servidor, depois pelos nomes mais comuns."""
+    try:
+        status, data = connection.list()
+    except (imaplib.IMAP4.error, OSError):
+        return None
+    if status != 'OK':
+        return None
+    names = []
+    for item in data or []:
+        line = item.decode('utf-8', 'replace') if isinstance(item, bytes) else str(item or '')
+        match = re.match(r'\((?P<flags>[^)]*)\)\s+(?:"[^"]*"|NIL)\s+(?P<name>.+)$', line.strip())
+        if not match:
+            continue
+        name = match.group('name').strip().strip('"')
+        if '\\sent' in match.group('flags').lower():
+            return name
+        names.append(name)
+    lowered = {name.lower(): name for name in names}
+    return next((lowered[wanted.lower()] for wanted in SENT_NAMES if wanted.lower() in lowered), None)
+
+
+def fetch_sent(host: str, port: int, username: str, password: str, state: dict, connector=connect) -> tuple[list[dict], dict, bool]:
+    """Lê a pasta de enviados em modo de leitura. Devolve mensagens, novo marcador e se a pasta existe."""
+    connection = _open(host, port, username, password, connector)
+    try:
+        folder = find_sent(connection)
+        if not folder:
+            return [], state, False
+        messages, mark = _collect(connection, folder, state.get(SENT, {}))
+        return messages, {**state, SENT: mark}, True
+    except (imaplib.IMAP4.error, OSError, socket.timeout):
+        raise MailError('A conexão com o servidor de e-mail falhou ao ler os enviados.') from None
+    finally:
+        _close(connection)
+
+
 def fetch_new(host: str, port: int, username: str, password: str, state: dict, connector=connect) -> tuple[list[dict], dict]:
     """Busca mensagens novas da caixa de entrada e devolve o novo marcador de UID."""
     connection = _open(host, port, username, password, connector)
     try:
-        validity = _examine(connection)
-        known = state.get(FOLDER, {})
-        last = known.get('uid', 0) if known.get('uidvalidity') == validity else 0
-        if last:
-            status, data = connection.uid('SEARCH', None, 'UID', f'{last + 1}:*')
-        else:
-            since = (datetime.now(timezone.utc) - timedelta(days=FIRST_SYNC_DAYS)).strftime('%d-%b-%Y')
-            status, data = connection.uid('SEARCH', None, 'SINCE', since)
-        if status != 'OK':
-            raise MailError('O servidor não respondeu à busca de mensagens.')
-        candidates = sorted(int(value) for value in (data[0] or b'').split() if int(value) > last)
-        # The initial import is intentionally bounded to recent messages. Later
-        # batches must drain oldest-first, otherwise a busy inbox loses demand sources.
-        uids = candidates[:FIRST_SYNC_LIMIT] if last else candidates[-FIRST_SYNC_LIMIT:]
-        messages = []
-        for start in range(0, len(uids), 25):
-            chunk = ','.join(str(uid) for uid in uids[start:start + 25])
-            status, data = connection.uid('FETCH', chunk, f'(UID FLAGS BODYSTRUCTURE BODY.PEEK[]<0.{FETCH_BYTES}>)')
-            if status != 'OK':
-                raise MailError('O servidor não entregou as mensagens.')
-            index = 0
-            while index < len(data):
-                item = data[index]
-                index += 1
-                if not isinstance(item, tuple):
-                    continue
-                meta = item[0].decode('utf-8', 'replace')
-                if index < len(data) and isinstance(data[index], bytes):
-                    meta += data[index].decode('utf-8', 'replace')
-                uid = re.search(r'UID (\d+)', meta)
-                if not uid:
-                    continue
-                flags = re.search(r'FLAGS \(([^)]*)\)', meta)
-                messages.append(parse_message(item[1], int(uid.group(1)), flags.group(1) if flags else '', meta))
-        if {item['uid'] for item in messages} != set(uids):
-            raise MailError('A coleta veio incompleta. O Monitor tentará novamente sem avançar o marcador.')
-        return messages, {**state, FOLDER: {'uidvalidity': validity, 'uid': max(uids, default=last)}}
+        messages, mark = _collect(connection, FOLDER, state.get(FOLDER, {}))
+        return messages, {**state, FOLDER: mark}
     except (imaplib.IMAP4.error, OSError, socket.timeout):
         raise MailError('A conexão com o servidor de e-mail falhou durante a coleta.') from None
     finally:
         _close(connection)
+
+
+def _collect(connection, folder: str, known: dict) -> tuple[list[dict], dict]:
+    validity = _examine(connection, folder)
+    last = known.get('uid', 0) if known.get('uidvalidity') == validity else 0
+    if last:
+        status, data = connection.uid('SEARCH', None, 'UID', f'{last + 1}:*')
+    else:
+        status, data = connection.uid('SEARCH', None, 'ALL')
+    if status != 'OK':
+        raise MailError('O servidor não respondeu à busca de mensagens.')
+    candidates = sorted(int(value) for value in (data[0] or b'').split() if int(value) > last)
+    # A primeira coleta traz só as mensagens mais recentes. As seguintes esvaziam a fila
+    # do mais antigo para o mais novo, para não pular origens de demandas.
+    uids = candidates[:BATCH_LIMIT] if last else candidates[-FIRST_SYNC_LIMIT:]
+    messages = []
+    for start in range(0, len(uids), 25):
+        chunk = ','.join(str(uid) for uid in uids[start:start + 25])
+        status, data = connection.uid('FETCH', chunk, f'(UID FLAGS BODYSTRUCTURE BODY.PEEK[]<0.{FETCH_BYTES}>)')
+        if status != 'OK':
+            raise MailError('O servidor não entregou as mensagens.')
+        index = 0
+        while index < len(data):
+            item = data[index]
+            index += 1
+            if not isinstance(item, tuple):
+                continue
+            meta = item[0].decode('utf-8', 'replace')
+            if index < len(data) and isinstance(data[index], bytes):
+                meta += data[index].decode('utf-8', 'replace')
+            uid = re.search(r'UID (\d+)', meta)
+            if not uid:
+                continue
+            flags = re.search(r'FLAGS \(([^)]*)\)', meta)
+            parsed = parse_message(item[1], int(uid.group(1)), flags.group(1) if flags else '', meta)
+            if folder != FOLDER:
+                headers = email.message_from_bytes(item[1], policy=email.policy.default)
+                parsed.update(folder=folder, in_reply_to=str(headers['In-Reply-To'] or '').strip()[:300])
+            messages.append(parsed)
+    if {item['uid'] for item in messages} != set(uids):
+        raise MailError('A coleta veio incompleta. O Monitor tentará novamente sem avançar o marcador.')
+    return messages, {'uidvalidity': validity, 'uid': max(uids, default=last), 'folder': folder}

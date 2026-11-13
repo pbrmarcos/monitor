@@ -65,6 +65,25 @@ await page.getByText("data a confirmar").waitFor();
 await page.getByRole("button", { name: "Marcar importante" }).click();
 await page.getByRole("tab", { name: /Todos/ }).click();
 await shot("emails");
+// Responder: duas sugestões, escolher uma, selecionar um trecho e melhorar.
+await page.getByRole("button", { name: "Sugerir 2 respostas" }).click();
+await page.getByRole("button", { name: "Usar opção 1" }).click();
+const answer = page.getByLabel("Sua resposta");
+// Seleção real pelo teclado: terceira linha da resposta ("Recebi sua mensagem...").
+await answer.click();
+await page.keyboard.press("Control+Home");
+await page.keyboard.press("ArrowDown");
+await page.keyboard.press("ArrowDown");
+await page.keyboard.press("Home");
+await page.keyboard.press("Shift+End");
+await page
+  .getByRole("button", { name: "Melhorar trecho selecionado" })
+  .click();
+await page.getByText("Trecho original:").waitFor();
+await shot("email-responder");
+await page.getByRole("button", { name: "Usar versão 2" }).click();
+if (!(await answer.inputValue()).includes("tudo bem?"))
+  throw new Error("A versão escolhida não substituiu o trecho");
 for (const name of [
   "Lembretes",
   "Sites",
@@ -142,6 +161,11 @@ await page
   .click();
 await compactMessages();
 await shot("assistente-conversa");
+for (const name of ["Anexar arquivo ou imagem", "Falar a mensagem"]) {
+  const button = page.getByRole("button", { name });
+  if (!(await button.isVisible()) || !(await button.isDisabled()))
+    throw new Error(`${name}: deve aparecer desativado na prévia do navegador`);
+}
 await page
   .getByRole("button", { name: "Nova conversa", exact: true })
   .click();

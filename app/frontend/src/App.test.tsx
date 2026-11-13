@@ -1,4 +1,5 @@
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { ReplyBox } from "./pages/Reply";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import App from "./App";
@@ -245,6 +246,80 @@ describe("Monitor interface", () => {
       ).toBeInTheDocument();
     } finally {
       stream.mockRestore();
+      calls.mockRestore();
+    }
+  });
+  it("suggests two replies, lets the user pick one and improves a selected passage", async () => {
+    const calls = vi
+      .spyOn(client, "api")
+      .mockImplementation(async (path: string, method = "GET", body?: unknown) => {
+        if (path === "/emails/7/draft" && method === "GET")
+          return { body: "" } as never;
+        if (path === "/emails/7/replies")
+          return {
+            options: ["Olá, Ana! Vi sim.", "Olá, Ana! Vi o material ontem e retorno até [data]."],
+          } as never;
+        if (path === "/emails/improve")
+          return {
+            options: [
+              `direta:${(body as { text: string }).text}`,
+              "Vi o material ontem",
+            ],
+          } as never;
+        return undefined as never;
+      });
+    const m = {
+      connected: true,
+      prefs: { name: "Marcos" },
+      setNotice: vi.fn(),
+      setError: vi.fn(),
+      fail: vi.fn(),
+    } as unknown as Monitor;
+    const email = {
+      id: 7,
+      account_id: 3,
+      sender: "Ana Souza <ana@cliente.example>",
+    } as client.Email;
+    try {
+      const user = userEvent.setup();
+      render(<ReplyBox email={email} m={m} />);
+      const improve = screen.getByRole("button", {
+        name: "Melhorar trecho selecionado",
+      });
+      expect(improve).toBeDisabled();
+      await user.type(
+        screen.getByLabelText("O que você quer dizer? (opcional)"),
+        "dizer que vi",
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Sugerir 2 respostas" }),
+      );
+      expect(calls).toHaveBeenCalledWith("/emails/7/replies", "POST", {
+        instruction: "dizer que vi",
+      });
+      await user.click(
+        await screen.findByRole("button", { name: "Usar opção 2" }),
+      );
+      const field = screen.getByLabelText("Sua resposta") as HTMLTextAreaElement;
+      expect(field.value).toBe(
+        "Olá, Ana! Vi o material ontem e retorno até [data].",
+      );
+      field.focus();
+      field.setSelectionRange(10, 29);
+      fireEvent.select(field);
+      await user.click(improve);
+      expect(calls).toHaveBeenCalledWith("/emails/improve", "POST", {
+        text: "Vi o material ontem",
+        draft: field.value,
+        account_id: 3,
+      });
+      expect(await screen.findByText(/Trecho original:/)).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Usar versão 1" }));
+      expect(field.value).toBe(
+        "Olá, Ana! direta:Vi o material ontem e retorno até [data].",
+      );
+      expect(screen.queryByText(/Trecho original:/)).not.toBeInTheDocument();
+    } finally {
       calls.mockRestore();
     }
   });

@@ -21,6 +21,8 @@ import {
   Storage,
 } from "../api";
 import type { Monitor } from "../store";
+import { WritingStyle } from "./Reply";
+import { VoicePanel } from "./Voice";
 import { Personalization, Updates } from "./Personalization";
 import { Callout, frontLabel, Panel, soon } from "../ui";
 
@@ -53,7 +55,9 @@ export function SettingsPage({ m }: { m: Monitor }) {
       </Panel>
       <FilesFolder m={m} />
       <Accounts m={m} />
+      <WritingStyle m={m} />
       <LocalAi m={m} />
+      <VoicePanel m={m} />
       <GoogleCalendar m={m} />
       <Rules m={m} />
       <Panel title="Lembretes e resumo diário">

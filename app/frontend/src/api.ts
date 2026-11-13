@@ -72,6 +72,19 @@ export type AccountInput = {
   username: string;
   password: string;
 };
+export type WritingStyle = {
+  account_id: number;
+  address: string;
+  front_id: number;
+  sent: number;
+  profile: string;
+  greeting: string;
+  closing: string;
+  words: number;
+  edited: boolean;
+  updated_at: string | null;
+  sent_status: string;
+};
 export type Storage = {
   files_dir: string | null;
   source: string | null;
@@ -140,6 +153,29 @@ function request(path: string, method: string, body?: unknown) {
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+}
+/** Envia a gravação ao backend, que transcreve com o modelo local. */
+export async function transcribe(audio: Blob): Promise<string> {
+  if (!connection) throw new Error("Backend indisponível.");
+  const response = await fetch(
+    `http://127.0.0.1:${connection.port}/assistant/transcribe`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${connection.token}`,
+        "Content-Type": audio.type || "audio/webm",
+      },
+      body: audio,
+    },
+  );
+  const body = await response.json().catch(() => null);
+  if (!response.ok)
+    throw new Error(
+      typeof body?.detail === "string"
+        ? body.detail
+        : "Não foi possível transcrever o áudio.",
+    );
+  return String(body?.text ?? "");
 }
 export async function api<T>(
   path: string,
@@ -217,6 +253,24 @@ export type Calendar = {
   error: string;
   events: number;
 };
+export type Attachment = {
+  id: number;
+  name: string;
+  kind: string;
+  size: number;
+  chars: number;
+  pages: number;
+  truncated: boolean;
+};
+export type VoiceStatus = {
+  size: string;
+  sizes: { id: string; label: string; mb: number }[];
+  engine: boolean;
+  ready: boolean;
+  downloading: boolean;
+  progress: number;
+  error: string;
+};
 export type Conversation = {
   id: number;
   mode: "work" | "general";
@@ -242,12 +296,19 @@ export async function conversationStream(
     done: (conversation?: Conversation) => void;
     action?: (result: ChatAction) => void;
     front_id?: number;
+    attachments?: number[];
+    task?: "next_messages";
   },
 ) {
   const response = await request(
     `/assistant/conversations/${id}/messages`,
     "POST",
-    { content, ...(on.front_id ? { front_id: on.front_id } : {}) },
+    {
+      content,
+      ...(on.front_id ? { front_id: on.front_id } : {}),
+      ...(on.attachments?.length ? { attachments: on.attachments } : {}),
+      ...(on.task ? { task: on.task } : {}),
+    },
   );
   if (!response.ok || !response.body)
     throw new Error("Não foi possível enviar a pergunta.");

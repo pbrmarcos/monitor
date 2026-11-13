@@ -10,6 +10,7 @@ import {
 import { useState } from "react";
 import { api, categoryLabels, Email, importanceLabels } from "../api";
 import type { Monitor } from "../store";
+import { ReplyBox } from "./Reply";
 import {
   Callout,
   dateLabel,
@@ -261,6 +262,7 @@ function Reader({ email, m }: { email: Email; m: Monitor }) {
           Não é importante
         </button>
       </div>
+      <ReplyBox key={email.id} email={email} m={m} />
     </article>
   );
 }

@@ -1,7 +1,7 @@
 // Native IPC is stubbed; HTTP, FastAPI and SQLite are real and isolated.
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
-import { mkdtemp, mkdir, readdir } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { createInterface } from "node:readline";
 import { once } from "node:events";
@@ -33,7 +33,11 @@ try {
   const lines = createInterface({ input: backend.stdout });
   const [line] = await once(lines, "line");
   const connection = JSON.parse(line);
-  browser = await chromium.launch({ headless: true, channel: "msedge" });
+  browser = await chromium.launch({
+    headless: true,
+    channel: "msedge",
+    args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
+  });
   const page = await browser.newPage();
   await page.addInitScript((connection) => {
     window.isTauri = true;
@@ -112,11 +116,50 @@ try {
     await page.getByText("Conversa excluída.", { exact: true }).waitFor();
     if (await page.locator(".conversation-open").count())
       throw new Error("A conversa excluída continua na lista");
+    // Arquivo anexado pela interface: lido no backend real e entregue ao modelo local.
+    const note = join(directory, "reuniao.txt");
+    await writeFile(
+      note,
+      "Reunião de 10/11 com a Nextlink. Decisão: migrar o site até 25/11. Marcos envia o orçamento da manutenção.",
+    );
+    await page
+      .getByRole("button", { name: "Nova conversa", exact: true })
+      .click();
+    await page.getByLabel("Escolher arquivos").setInputFiles(note);
+    await page.getByRole("button", { name: "Remover anexo: reuniao.txt" }).waitFor();
+    await page.getByText("Lendo…").waitFor({ state: "detached" });
+    await mkdir("tmp/ui", { recursive: true });
+    await page.screenshot({ path: "tmp/ui/assistente-anexo.png" });
+    await page
+      .getByLabel("Mensagem para o assistente")
+      .fill("Qual o prazo para migrar o site? Responda só a data.");
+    await page.getByRole("button", { name: "Enviar mensagem" }).click();
+    await page.getByText("reuniao.txt", { exact: true }).last().waitFor();
+    await page
+      .getByRole("button", { name: "Nova conversa", exact: true })
+      .and(page.locator(":enabled"))
+      .waitFor({ timeout: 300000 });
+    const reading = await page.locator(".message.message-assistant").last().innerText();
+    if (!/25\/11|25 de novembro/i.test(reading))
+      throw new Error(`O modelo não leu o arquivo anexado: ${reading}`);
+    console.log(`Arquivo anexado lido pelo modelo local: ${reading.replace(/\s+/g, " ")}`);
+    await page.getByRole("button", { name: /Qual o prazo para migrar o site.*Geral/ }).waitFor();
     await page
       .locator("nav")
       .getByRole("button", { name: "Visão geral", exact: true })
       .click();
   } else console.log("Chat não testado nesta execução");
+  // Voz: o motor existe, mas o modelo não foi baixado; o microfone deve explicar o que fazer.
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Assistente", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Falar a mensagem" }).click();
+  await page.getByText(/baixe antes o modelo de voz/).waitFor();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Visão geral", exact: true })
+    .click();
   // Ações reais por chat: não dependem do Ollama, não usam contas ou credenciais reais.
   await page
     .getByLabel("Mensagem para o assistente")

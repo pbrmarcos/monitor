@@ -62,6 +62,8 @@ class EmailAccount(SQLModel, table=True):
     last_sync: datetime | None = None
     status: str = 'aguardando'
     status_detail: str = ''
+    # Leitura da pasta de enviados: '' (ainda não lida), 'ok', 'sem_pasta' ou 'erro'.
+    sent_status: str = ''
 
 
 class Email(SQLModel, table=True):
@@ -98,6 +100,38 @@ class EmailAnalysis(SQLModel, table=True):
     correcao: str | None = None
     # True enquanto só as regras determinísticas avaliaram a mensagem.
     provisional: bool = True
+
+
+class SentEmail(SQLModel, table=True):
+    """Mensagem escrita pelo usuário, lida da pasta de enviados para aprender o estilo. Fica só neste computador."""
+    __table_args__ = (UniqueConstraint('account_id', 'message_id'),)
+    id: int | None = Field(default=None, primary_key=True)
+    account_id: int = Field(index=True)
+    message_id: str
+    recipients: str = ''
+    subject: str = ''
+    date: datetime | None = Field(default=None, index=True)
+    body_text: str = ''
+    in_reply_to: str = ''
+
+
+class EmailStyle(SQLModel, table=True):
+    """Como o usuário escreve em uma conta: perfil descrito pela IA local e padrões contados nos enviados."""
+    account_id: int = Field(primary_key=True)
+    profile: str = ''
+    greeting: str = ''
+    closing: str = ''
+    words: int = 0
+    samples: int = 0
+    edited: bool = False
+    updated_at: datetime | None = None
+
+
+class EmailDraft(SQLModel, table=True):
+    """Rascunho de resposta. O Monitor não envia e-mails."""
+    email_id: int = Field(primary_key=True)
+    body: str = ''
+    updated_at: datetime = Field(default_factory=now)
 
 
 class AiJob(SQLModel, table=True):
@@ -265,6 +299,22 @@ class ChatTurn(SQLModel, table=True):
     conversation_id: int = Field(index=True)
     role: str  # user/assistant, preference_user/preference_assistant, rule ou error
     content: str
+    created_at: datetime = Field(default_factory=now)
+
+
+class ChatAttachment(SQLModel, table=True):
+    """Arquivo ou imagem anexado a uma pergunta. Lido e guardado só neste computador."""
+    id: int | None = Field(default=None, primary_key=True)
+    conversation_id: int | None = Field(default=None, index=True)
+    turn_id: int | None = Field(default=None, index=True)  # vazio enquanto o anexo não foi enviado
+    name: str
+    kind: str  # text | pdf | docx | xlsx | image
+    mime: str = ''
+    size: int = 0
+    pages: int = 0
+    truncated: bool = False
+    text: str = ''
+    image: str = ''  # base64 para o modelo de visão
     created_at: datetime = Field(default_factory=now)
 
 

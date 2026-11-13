@@ -18,6 +18,8 @@ class Context:
     today: date
     priority_senders: list[str] = field(default_factory=list)
     open_contacts: list[str] = field(default_factory=list)
+    # Endereços para quem o usuário já escreveu (pasta de enviados).
+    known_recipients: set[str] = field(default_factory=set)
 
 
 def _squash(text: str) -> str:
@@ -79,6 +81,10 @@ def decide(sender: str, subject: str, body: str, bulk: bool, ai: dict | None, co
     if (priority or client) and RANK[result['importancia']] < RANK['importante']:
         result['importancia'] = 'importante'
         reasons.append('Remetente prioritário.' if priority else 'Cliente com demanda aberta.')
+    if (not bulk and parseaddr(sender)[1].lower() in context.known_recipients
+            and RANK[result['importancia']] < RANK['importante']):
+        result['importancia'] = 'importante'
+        reasons.append('Você já escreveu para este remetente.')
     folded_subject, folded_body = fold(subject), fold(body)
     if not bulk and (BUDGET_SUBJECT.search(folded_subject) or BUDGET_BODY.search(folded_body)):
         result.update(importancia='acao', criar_demanda=True)

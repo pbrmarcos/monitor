@@ -1,8 +1,9 @@
 import {
-  ArrowRight,
   ArrowUpRight,
   Briefcase,
   CheckCircle2,
+  FileText,
+  Image as ImageIcon,
   MessageSquare,
   Plus,
   Sparkles,
@@ -13,10 +14,13 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   api,
   AssistantRule,
+  Attachment,
   ChatAction,
   Conversation,
   conversationStream,
+  VoiceStatus,
 } from "../api";
+import { Composer } from "./Composer";
 import type { Monitor } from "../store";
 import { Callout, timeLabel } from "../ui";
 
@@ -29,6 +33,7 @@ type ChatMessage = {
   text: string;
   error?: boolean;
   action?: ChatAction;
+  attachments?: { id: number; name: string; kind: string }[];
 };
 const draft = (mode: ChatMode) => `new-${mode}`;
 
@@ -80,7 +85,17 @@ export function useAssistant(m: Monitor) {
           };
     });
 
-  async function ask(mode: ChatMode, text: string) {
+  const [voice, setVoice] = useState<VoiceStatus | null>(null);
+  async function refreshVoice() {
+    const status = await api<VoiceStatus>("/voice");
+    setVoice(status);
+    return status;
+  }
+  async function ask(
+    mode: ChatMode,
+    text: string,
+    options: { attachments?: Attachment[]; task?: "next_messages" } = {},
+  ) {
     const question = text.trim();
     if (!question || busy[mode] || question.length > 4000) return;
     if (!connected) {
@@ -102,12 +117,27 @@ export function useAssistant(m: Monitor) {
         setActive((old) => ({ ...old, [mode]: created }));
       }
       key = String(id);
+      const sent = options.attachments ?? [];
       append(key, [
-        { role: "user", text: question },
+        {
+          role: "user",
+          text: question,
+          ...(sent.length
+            ? {
+                attachments: sent.map(({ id, name, kind }) => ({
+                  id,
+                  name,
+                  kind,
+                })),
+              }
+            : {}),
+        },
         { role: "assistant", text: "" },
       ]);
       await conversationStream(id, question, {
         front_id: m.front || undefined,
+        attachments: sent.map((item) => item.id),
+        task: options.task,
         delta: (part) =>
           patchAnswer(key, (last) => ({ ...last, text: last.text + part })),
         rule: (rule) => {
@@ -219,7 +249,14 @@ export function useAssistant(m: Monitor) {
       threads[active[mode] === null ? draft(mode) : String(active[mode])] || [],
     busy: busy[mode],
     ready,
-    ask: (text: string) => ask(mode, text),
+    ask: (
+      text: string,
+      options?: { attachments?: Attachment[]; task?: "next_messages" },
+    ) => ask(mode, text, options),
+    report: (text: string) => m.setError(text),
+    refreshVoice,
+    voice,
+    openVoiceSettings: () => m.setPage("Configurações"),
     clear: () => startNew(mode),
     openSettings: () => m.setPage("Configurações"),
     openDemand: (id: number) => {
@@ -259,7 +296,7 @@ export function useAssistant(m: Monitor) {
   };
 }
 export type Assistant = ReturnType<typeof useAssistant>;
-type ChatApi = Assistant["work"];
+export type ChatApi = Assistant["work"];
 
 /** Transforma citações como [D12] em atalhos para a demanda. */
 function Answer({ text, chat }: { text: string; chat: ChatApi }) {
@@ -293,16 +330,13 @@ export function Chat({
   compact?: boolean;
 }) {
   const general = chat.mode === "general";
-  const [question, setQuestion] = useState("");
   const log = useRef<HTMLDivElement>(null);
   useEffect(() => {
     log.current?.scrollTo?.({ top: log.current.scrollHeight });
   }, [chat.messages]);
-  useEffect(() => setQuestion(""), [chat.mode, chat.conversationId]);
   function send(text: string) {
     if (chat.busy || !text.trim()) return;
     void chat.ask(text);
-    setQuestion("");
   }
   return (
     <div className="chat">
@@ -374,7 +408,23 @@ export function Chat({
                   "Pensando…"
                 )
               ) : (
-                message.text
+                <>
+                  {message.attachments?.length ? (
+                    <span className="attach-row sent">
+                      {message.attachments.map((file) => (
+                        <span className="attach-chip static" key={file.id}>
+                          {file.kind === "image" ? (
+                            <ImageIcon size={16} aria-hidden />
+                          ) : (
+                            <FileText size={16} aria-hidden />
+                          )}
+                          <span className="attach-name">{file.name}</span>
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                  {message.text}
+                </>
               )}
             </div>
           ),
@@ -400,38 +450,14 @@ export function Chat({
           ))}
         </div>
       )}
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(question);
-        }}
-      >
-        <textarea
-          aria-label="Mensagem para o assistente"
-          placeholder={
-            general
-              ? "Converse sobre qualquer assunto…"
-              : "Pergunte ou peça uma ação…"
-          }
-          maxLength={4000}
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send(question);
-            }
-          }}
-        />
-        <button
-          className="icon sm primary"
-          aria-label="Enviar mensagem"
-          disabled={chat.busy || !question.trim()}
-        >
-          <ArrowRight size={18} />
-        </button>
-      </form>
+      <Composer
+        chat={chat}
+        placeholder={
+          general
+            ? "Converse sobre qualquer assunto…"
+            : "Pergunte ou peça uma ação…"
+        }
+      />
       <div className="chat-foot">
         <small>
           IA local · pedidos diretos podem criar e alterar registros

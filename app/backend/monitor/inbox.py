@@ -8,7 +8,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from . import ai, mail
-from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Setting, Suggestion, now, as_utc
+from email.utils import getaddresses
+
+from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, SentEmail, Setting, Suggestion, now, as_utc
 from .rules import Context, decide
 
 CLOSED = ('ganho', 'perdido')
@@ -32,7 +34,15 @@ def priority_senders(db: Session) -> list[str]:
 
 def context(db: Session, reference: date | None = None) -> Context:
     contacts = [d.contact for d in db.exec(select(Demand).where(Demand.stage.not_in(CLOSED))).all() if d.contact.strip()]
-    return Context(today=reference or date.today(), priority_senders=priority_senders(db), open_contacts=contacts)
+    return Context(today=reference or date.today(), priority_senders=priority_senders(db), open_contacts=contacts,
+                   known_recipients=known_recipients(db))
+
+
+def known_recipients(db: Session) -> set[str]:
+    found: set[str] = set()
+    for recipients in db.exec(select(SentEmail.recipients)).all():
+        found.update(address.lower() for _, address in getaddresses([recipients]) if '@' in address)
+    return found
 
 
 def reference_date(message: Email) -> date:
@@ -64,7 +74,8 @@ def store_message(db: Session, account: EmailAccount, data: dict, rules: Context
     db.add(message)
     db.flush()
     # Sem IA o sistema continua útil: as regras dão uma análise provisória.
-    message_rules = Context(today=reference_date(message), priority_senders=rules.priority_senders, open_contacts=rules.open_contacts)
+    message_rules = Context(today=reference_date(message), priority_senders=rules.priority_senders,
+                            open_contacts=rules.open_contacts, known_recipients=rules.known_recipients)
     decision = decide(message.sender, message.subject, message.body_text, message.bulk, None, message_rules)
     analysis = EmailAnalysis(email_id=message.id, provisional=True, **{key: decision[key] for key in ANALYSIS_FIELDS})
     db.add(analysis)
@@ -96,6 +107,46 @@ def sync_account(engine, account_id: int, secrets, connector=mail.connect) -> in
         db.add(account)
         db.commit()
         return created
+
+
+def sync_sent(engine, account_id: int, secrets, connector=mail.connect) -> int:
+    """Lê a pasta de enviados (somente leitura) para aprender como o usuário escreve."""
+    with _sync_lock, Session(engine) as db:
+        account = db.get(EmailAccount, account_id)
+        password = secrets.get(account.keyring_ref) if account else None
+        if not account or not password:
+            return 0
+        try:
+            messages, state, exists = mail.fetch_sent(account.host, account.port, account.username, password,
+                                                      json.loads(account.last_uids or '{}'), connector)
+        except mail.MailError:
+            account.sent_status = 'erro'
+            db.add(account)
+            db.commit()
+            return 0
+        created = 0
+        for data in messages:
+            if db.exec(select(SentEmail).where(SentEmail.account_id == account.id, SentEmail.message_id == data['message_id'])).first():
+                continue
+            db.add(SentEmail(account_id=account.id, message_id=data['message_id'], recipients=data['recipients'],
+                             subject=data['subject'], date=data['date'], body_text=data['body_text'],
+                             in_reply_to=data.get('in_reply_to', '')))
+            created += 1
+        account.last_uids = json.dumps(state)
+        account.sent_status = 'ok' if exists else 'sem_pasta'
+        db.add(account)
+        try:
+            db.commit()
+        except SQLAlchemyError:
+            db.rollback()  # conta removida durante a leitura dos enviados
+            return 0
+        return created
+
+
+def sync_sent_all(engine, secrets, connector=mail.connect) -> int:
+    with Session(engine) as db:
+        identifiers = [account.id for account in db.exec(select(EmailAccount)).all()]
+    return sum(sync_sent(engine, identifier, secrets, connector) for identifier in identifiers)
 
 
 def sync_all(engine, secrets, connector=mail.connect) -> int:

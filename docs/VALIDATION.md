@@ -2,6 +2,17 @@
 
 Situação em 12/11/2026, versão `0.8.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
 
+## Respostas aprendidas, anexos e voz (alterações ainda não publicadas)
+
+Em 13/11/2026: 134 testes de backend e 17 de componentes passaram; TypeScript e Vite compilaram; o teste visual e o integrado (API e SQLite reais, Ollama real) passaram. Funcionamento e limites em [RESPOSTAS.md](RESPOSTAS.md) e [ANEXOS-E-VOZ.md](ANEXOS-E-VOZ.md).
+
+- **Aprendizado de estilo e respostas.** Testado com servidor IMAP simulado: primeira coleta limitada aos 100 mais recentes, leitura da pasta de enviados só com `EXAMINE` e `BODY.PEEK` (sem escrita), perfil por conta, preservação de perfil editado, duas respostas por e-mail, duas versões de um trecho, rascunho salvo, remoção dos dados com a conta. Com o `qwen3.5:4b` real, a descrição do estilo saiu coerente e as respostas imitaram saudação, despedida e tamanho; o modelo às vezes assume um prazo que o usuário não deu, por isso o texto avisa para revisar.
+- **Anexos.** Leitura de texto, PDF, Word, Excel e imagem, recusas com mensagem (executável, `.doc`, arquivo vazio, binário, PDF quebrado, acima de 10 MB), conteúdo entregue ao modelo uma vez e mantido no histórico, imagem só no turno em que foi enviada, limites por mensagem, expiração de anexos não enviados e instruções dentro de arquivos sem efeito (nenhuma regra ou lembrete é criado). Com o modelo real: um print de conversa fictício foi lido (valor pedido e prazo corretos) e respondido no formato Situação, Opção 1 e Opção 2; um arquivo de texto anexado pela interface foi lido e respondido corretamente.
+- **Voz.** Testado com motor e repositório de modelos simulados: download com SHA-256 conferido, retomada de download interrompido, modelo corrompido recusado, rede fora do ar, motor ausente, limites de áudio, descarga por inatividade e erros sem detalhes internos. **Nenhuma transcrição com modelo e fala reais foi feita**, e nenhum modelo foi baixado.
+- **Defeito encontrado no executável empacotado.** O backend desktop é iniciado com um pipe na entrada padrão e uma leitura bloqueada nele travava o carregamento das bibliotecas nativas do Whisper (só no executável e no modo do aplicativo). A espera pelo encerramento do aplicativo passou a consultar o pipe sem bloquear. Há teste automatizado que falha com o comportamento antigo, e `scripts/voice_sidecar_smoke.py` confirma no executável compilado que o motor carrega (com modelo falso, sem baixar nada) e que PDF e Word são lidos.
+- **Tamanho.** O executável do backend passou de 22 MB para cerca de 136 MB com Whisper, bibliotecas de áudio e PDF.
+- **Não validado:** transcrição real, permissão e gravação do microfone no aplicativo instalado, arrastar arquivo do Explorer para a janela instalada, contas IMAP reais e o build do instalador no GitHub Actions com as novas dependências.
+
 ## Ações reais pelo chat (0.8.0-alpha.1)
 
 As ações têm interpretação determinística de pedidos diretos e confirmação do banco. Os testes reproduzem o formato do pedido da imagem com um título sintético, guardam o lembrete no horário correto de São Paulo e verificam que o envio ao Google é marcado como pendente quando a conta não está conectada. Criar, reagendar, concluir e cancelar são testados sem chamar o Ollama. Demandas são criadas com frente explícita ou selecionada; mudança de etapa, prioridade e data usam o identificador do registro.

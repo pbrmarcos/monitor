@@ -4,6 +4,7 @@ import secrets
 import socket
 import sys
 import threading
+import time
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -22,8 +23,8 @@ from sqlalchemy import text
 from sqlalchemy.schema import CreateTable, CreateIndex
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from . import ai, assistant, gcal, inbox, mail, prefs, social, storage, reminders, agenda_api, sites, forms
-from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, Event, Setting, Suggestion, as_utc, now
+from . import ai, replies, voice as voice_module, assistant, gcal, inbox, mail, prefs, social, storage, reminders, agenda_api, sites, forms
+from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, EmailDraft, EmailStyle, SentEmail, Event, Setting, Suggestion, as_utc, now
 from .models import Conversation, ChatTurn, AssistantRule, Reminder
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
@@ -121,6 +122,8 @@ def migrate(engine):
             connection.execute(text("ALTER TABLE demand ADD COLUMN origin_ref VARCHAR NOT NULL DEFAULT ''"))
         if 'created_by' not in columns:
             connection.execute(text("ALTER TABLE demand ADD COLUMN created_by VARCHAR NOT NULL DEFAULT 'usuario'"))
+        if 'sent_status' not in {row[1] for row in connection.execute(text('PRAGMA table_info(emailaccount)'))}:
+            connection.execute(text("ALTER TABLE emailaccount ADD COLUMN sent_status VARCHAR NOT NULL DEFAULT ''"))
         reminder_columns = {row[1] for row in connection.execute(text('PRAGMA table_info(reminder)'))}
         if 'revision' not in reminder_columns:
             connection.execute(text('ALTER TABLE reminder ADD COLUMN revision INTEGER NOT NULL DEFAULT 0'))
@@ -185,7 +188,8 @@ def seed_demo(db: Session):
 
 
 def create_app(data_dir: Path | None = None, token: str | None = None, demo: bool | None = None,
-               secret_store=None, connector=mail.connect, default_files_dir: str | None = None, workers: bool = False):
+               secret_store=None, connector=mail.connect, default_files_dir: str | None = None, workers: bool = False,
+               voice_engine=None, voice_transport=None, voice_installed=None):
     folder = data_dir or Path(os.environ.get('LOCALAPPDATA', str(Path.home() / '.local/share'))) / 'Monitor'
     folder.mkdir(parents=True, exist_ok=True)
     demo = os.getenv('MONITOR_DEMO') == '1' if demo is None else demo
@@ -196,6 +200,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     security = HTTPBearer(auto_error=False)
     vault = secret_store or (MemoryStore() if demo else KeyringStore())
     scheduler = None
+    voice = voice_module.Voice(folder, voice_engine, voice_transport, voice_installed)
 
     def authorize(credentials: HTTPAuthorizationCredentials | None = Depends(security)):
         if not credentials or not secrets.compare_digest(credentials.credentials, session_token):
@@ -222,6 +227,11 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
             except storage.StorageError:
                 pass
 
+    def learn_writing():
+        # Enviados e perfil de escrita: leitura somente, a cada 30 minutos.
+        inbox.sync_sent_all(engine, vault, connector)
+        replies.learn_all(engine)
+
     @asynccontextmanager
     async def lifespan(app):
         nonlocal scheduler
@@ -236,11 +246,13 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
             scheduler = BackgroundScheduler(job_defaults={'coalesce': True, 'max_instances': 1, 'misfire_grace_time': 60})
             start = datetime.now() + timedelta(seconds=8)
             scheduler.add_job(lambda: reminders.generate(engine, demo=demo), IntervalTrigger(seconds=10), next_run_time=start)
+            scheduler.add_job(voice.unload_idle, IntervalTrigger(minutes=5), next_run_time=start + timedelta(minutes=5))
             if not demo:
                 scheduler.add_job(lambda: sites.check_all(engine), IntervalTrigger(minutes=2), next_run_time=start + timedelta(seconds=2))
                 scheduler.add_job(lambda: forms.sync(engine, vault), IntervalTrigger(minutes=1), next_run_time=start + timedelta(seconds=4))
                 scheduler.add_job(lambda: inbox.sync_all(engine, vault, connector), IntervalTrigger(minutes=2), next_run_time=start)
                 scheduler.add_job(lambda: inbox.process_queue(engine), IntervalTrigger(seconds=20), next_run_time=start)
+                scheduler.add_job(learn_writing, IntervalTrigger(minutes=30), next_run_time=start + timedelta(seconds=45))
                 scheduler.add_job(lambda: gcal.sync(engine, vault), IntervalTrigger(minutes=2), next_run_time=start + timedelta(seconds=12))
                 scheduler.add_job(lambda: social.sync(engine, vault), IntervalTrigger(minutes=15), next_run_time=start + timedelta(seconds=20), id='social-15min')
                 scheduler.add_job(backup_if_due, IntervalTrigger(hours=3), next_run_time=start + timedelta(seconds=30))
@@ -255,11 +267,14 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     app.state.token = session_token
     app.state.engine = engine
     app.state.vault = vault
+    app.state.voice = voice
     app.state.open_browser = gcal.webbrowser.open
     app.include_router(agenda_api.router(engine, session, demo))
     app.include_router(sites.router(engine, session, demo))
     app.include_router(forms.router(engine, session, vault, demo))
     app.include_router(social.router(engine, session, vault, demo))
+    app.include_router(replies.router(engine, session, vault, connector, demo))
+    app.include_router(voice_module.router(voice, session, demo))
     app.include_router(assistant.router(engine, session, vault=vault, demo=demo))
 
     @app.exception_handler(RequestValidationError)
@@ -465,7 +480,13 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
                 db.delete(row)
             for row in db.exec(select(Suggestion).where(Suggestion.email_id == message.id, Suggestion.status == 'pendente')).all():
                 db.delete(row)
+            if row := db.get(EmailDraft, message.id):
+                db.delete(row)
             db.delete(message)
+        for row in db.exec(select(SentEmail).where(SentEmail.account_id == identifier)).all():
+            db.delete(row)
+        if row := db.get(EmailStyle, identifier):
+            db.delete(row)
         vault.delete(account.keyring_ref)
         db.delete(account)
         db.commit()
@@ -475,6 +496,7 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
         real_accounts_only()
         created = inbox.sync_all(engine, vault, connector)
         threading.Thread(target=inbox.process_queue, args=(engine,), daemon=True).start()
+        threading.Thread(target=learn_writing, daemon=True).start()
         return {'new': created}
 
     # ---- E-mails, correções e sugestões ----------------------------------
@@ -683,6 +705,33 @@ def create_app(data_dir: Path | None = None, token: str | None = None, demo: boo
     return app
 
 
+def parent_closed_by_polling(server) -> bool:
+    """Espera o processo pai encerrar sem manter uma leitura bloqueada na entrada padrão.
+
+    No Windows, uma leitura síncrona parada em stdin trava qualquer outra operação nesse mesmo canal, e as bibliotecas
+    nativas do motor de voz (carregadas depois) ficavam presas. Aqui o pipe é só consultado: quando o pai fecha a ponta
+    de escrita, a consulta falha com ERROR_BROKEN_PIPE. Devolve False quando não for possível consultar (outro sistema
+    ou entrada que não é pipe); nesse caso o chamador usa a leitura bloqueante de sempre.
+    """
+    if os.name != 'nt':
+        return False
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.PeekNamedPipe.argtypes = [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD, wintypes.LPDWORD, wintypes.LPDWORD, wintypes.LPDWORD]
+    try:
+        handle = wintypes.HANDLE(msvcrt.get_osfhandle(sys.stdin.fileno()))
+    except (OSError, ValueError):
+        return False
+    available = wintypes.DWORD()
+    while not server.should_exit:
+        if not kernel.PeekNamedPipe(handle, None, 0, None, ctypes.byref(available), None):
+            return ctypes.get_last_error() == 109  # ERROR_BROKEN_PIPE: o pai encerrou
+        time.sleep(0.5)
+    return True
+
+
 def run():
     token = secrets.token_urlsafe(32)
     app = create_app(token=token, default_files_dir=storage.installer_choice(), workers=True)
@@ -694,7 +743,8 @@ def run():
     if os.getenv('MONITOR_PARENT_PIPE') == '1':
         def watch_parent():
             try:
-                sys.stdin.buffer.read()
+                if not parent_closed_by_polling(server):
+                    sys.stdin.buffer.read()
             finally:
                 server.should_exit = True
         threading.Thread(target=watch_parent, daemon=True).start()
