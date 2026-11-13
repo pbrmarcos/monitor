@@ -1,6 +1,20 @@
 # Validação
 
-Situação em 12/11/2026, versão `0.6.0-alpha.2`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 12/11/2026, versão `0.7.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Instagram pelo Chrome oculto (0.7.0-alpha.1)
+
+82 testes de backend e 6 de interface passaram, além de TypeScript/Vite e navegação visual em três larguras. O novo fluxo de conexão, pausa e revisão de comentários foi testado com a API simulada; a tela foi inspecionada em 1600 e 820 px com dados fictícios.
+
+Os testes do backend cobrem descoberta e conexão sem token, rejeição de perfil inexistente/duplicado, criação automática apenas de pedidos comerciais novos, revisão dos antigos, comentários da própria conta ignorados, deduplicação em rodadas e reconexões, criação manual idempotente, pausa, desafio de login, manutenção dos últimos dados, modo de demonstração isolado, paginação, contadores exatos e migração de contas da API preservando sua referência ao cofre.
+
+O teste `run_backend.py --browser-smoke` abriu o Chrome real sem janela e percorreu tanto as respostas da sessão quanto a alternativa pela página. Todas as respostas foram interceptadas com dados sintéticos; nenhum Instagram real foi acessado por esse teste. O mesmo comentário recebeu a mesma identidade nos dois leitores. Esse teste também é executado no backend empacotado pelo build Windows.
+
+A leitura foi exercitada separadamente em três contas reais autorizadas, confirmando totais e leitura das publicações da página. A rota interna de perfil retornou 404, e a alternativa pela página funcionou. Uma quarta conta estava aberta no Prospect e foi adiada, sem encerrar o programa ou seu Chrome. Não foram inseridas demandas de teste no banco real; a criação de demandas foi validada com comentários sintéticos. Uma coleta pontual não demonstra operação contínua por dias nem cobertura de todos os comentários.
+
+A agenda consulta a cada 15 minutos enquanto PC e Monitor estão ativos; perfis ocupados são adiados. Login pendente e limite de consultas exigem intervenção do usuário antes da retomada. Direct e stories não são lidos pelo navegador. A instalação efetiva pelo atualizador continua pendente de validação manual no aplicativo instalado.
+
+O [build Windows de 015e888](https://github.com/pbrmarcos/monitor/actions/runs/43332834554) passou com os testes, backend empacotado, scheduler, os dois leitores do Instagram em Chrome real sem janela com respostas sintéticas, frontend, Rust, instaladores NSIS/MSI e assinaturas do atualizador. Os avisos do Playwright e do Node acompanham a distribuição. Os pacotes 0.7.0-alpha.1 são os artefatos dessa execução.
 
 ## Conversas salvas e memórias verificáveis (0.6.0-alpha.2)
 
