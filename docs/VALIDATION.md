@@ -1,6 +1,12 @@
 # Validação
 
-Situação em 13/11/2026, versão `0.10.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 13/11/2026, versão `0.10.1-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Skills Markdown e escrita natural (0.10.1-alpha.1)
+
+151 testes de backend e 23 de interface passaram localmente; TypeScript/Vite compilou. A cobertura inclui migração das skills antigas, importação como rascunho, preservação da referência original, envio apenas das instruções ativas, edição, validação de arquivos e limites, seleção da skill de escrita somente nos pedidos correspondentes e prioridade das skills personalizadas sobre as orientações genéricas. O teste visual com dados fictícios passou nas larguras de 1200, 860 e 600 px, sem transbordamento horizontal ou erros de página.
+
+O teste local do Qwen3.5 4B Q4_K_M comparou o documento de escrita fornecido pelo usuário com uma adaptação curta em dois textos fictícios. O documento completo gerou entradas de cerca de 8.440 tokens e, em um caso, misturou a condição de pagamento com o prazo de entrega, mantendo expressões genéricas. A primeira adaptação também repetiu um texto em vez de editá-lo. Após acrescentar um exemplo curto, a adaptação preservou os dados nos dois casos com entradas de aproximadamente 770 tokens; ainda manteve um termo genérico em uma resposta. Isso não mede acurácia geral. O contexto continuou em 16.384 e o Ollama reportou aproximadamente 3,31 GiB de alocação do modelo na GPU. Nenhum peso foi treinado, nenhum modelo novo foi baixado e o documento original do usuário não foi publicado no repositório.
 
 ## Imagens, registros e skills (0.10.0-alpha.1)
 

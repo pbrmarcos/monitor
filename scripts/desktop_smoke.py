@@ -54,7 +54,12 @@ with tempfile.TemporaryDirectory() as folder:
         assert any(item['id'] == rule['id'] for item in assistant_call('/assistant/rules'))
         records = assistant_call('/assistant/records')
         assert records[0]['kind'] == 'action' and records[0]['status'] == 'completed' and records[0]['metrics'] == {}
-        assert len(assistant_call('/assistant/skills')) == 4
+        bundled = assistant_call('/assistant/skills')
+        assert len(bundled) == 5
+        natural = next(item for item in bundled if item['id'] == 'natural-writing')
+        assert len(natural['instructions']) > 600 and natural['source_markdown']
+        imported = assistant_call('/assistant/skills/import', 'POST', {'filename': 'test.md', 'markdown': '# Skill de exemplo\nConfira os fatos antes de reescrever.'})
+        assert imported['instructions'].endswith('reescrever.')
         custom = assistant_call('/assistant/skills', 'POST', {'name': 'Skill de teste', 'keywords': 'exemplo', 'instructions': 'Confira os dados antes de responder.'})
         updated = assistant_call('/assistant/skills/' + custom['id'], 'PUT', {'enabled': False})
         assert next(item for item in updated if item['id'] == custom['id'])['enabled'] is False

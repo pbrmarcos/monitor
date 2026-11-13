@@ -587,7 +587,14 @@ class SkillInput(BaseModel):
     name: str = Field(min_length=3, max_length=60)
     description: str = Field(default='', max_length=160)
     keywords: str = Field(min_length=3, max_length=160)
-    instructions: str = Field(min_length=10, max_length=600)
+    instructions: str = Field(min_length=10, max_length=assistant_skills.ACTIVE_LIMIT)
+    source_markdown: str = Field(default='', max_length=assistant_skills.DOCUMENT_LIMIT)
+    source_name: str = Field(default='', max_length=200)
+
+
+class SkillImport(BaseModel):
+    filename: str = Field(min_length=1, max_length=200)
+    markdown: str = Field(min_length=1, max_length=assistant_skills.DOCUMENT_LIMIT)
 
 
 class SkillToggle(BaseModel):
@@ -736,8 +743,16 @@ def router(engine, session, *, vault=None, demo=False):
     def skills(db: Session = Depends(session)):
         return assistant_skills.catalog(db)
 
+    @api.post('/skills/import')
+    def import_skill(payload: SkillImport):
+        try:
+            return assistant_skills.import_markdown(payload.filename, payload.markdown)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
+
     @api.post('/skills', status_code=201)
     def add_skill(payload: SkillInput, db: Session = Depends(session)):
+        db.execute(sql_text('BEGIN IMMEDIATE'))
         if len(db.exec(select(AssistantSkill)).all()) >= 8:
             raise HTTPException(409, 'Use no máximo 8 skills personalizadas.')
         if not all(value.strip() for value in (payload.name, payload.keywords, payload.instructions)):
@@ -747,6 +762,21 @@ def router(engine, session, *, vault=None, demo=False):
         db.commit()
         db.refresh(row)
         return next(item for item in assistant_skills.catalog(db) if item['id'] == f'custom-{row.id}')
+
+    @api.patch('/skills/{identifier}')
+    def edit_skill(identifier: str, payload: SkillInput, db: Session = Depends(session)):
+        if not identifier.startswith('custom-') or not identifier[7:].isdigit():
+            raise HTTPException(400, 'Edite apenas skills personalizadas.')
+        row = db.get(AssistantSkill, int(identifier[7:]))
+        if not row:
+            raise HTTPException(404, 'Skill não encontrada.')
+        if not all(value.strip() for value in (payload.name, payload.keywords, payload.instructions)):
+            raise HTTPException(422, 'Preencha nome, palavras-chave e instruções.')
+        for key, value in payload.model_dump(exclude_unset=True).items():
+            setattr(row, key, value)
+        db.add(row)
+        db.commit()
+        return next(item for item in assistant_skills.catalog(db) if item['id'] == identifier)
 
     @api.put('/skills/{identifier}')
     def toggle_skill(identifier: str, payload: SkillToggle, db: Session = Depends(session)):

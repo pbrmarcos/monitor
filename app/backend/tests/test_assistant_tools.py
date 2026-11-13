@@ -81,7 +81,7 @@ def test_metrics_never_fabricate_speed_for_missing_or_zero_duration():
 def test_skills_are_selective_bounded_and_can_be_disabled_or_added(tmp_path):
     with make(tmp_path) as api:
         original_model = api.get('/settings').json()['model']
-        assert len(api.get('/assistant/skills').json()) == 4
+        assert len(api.get('/assistant/skills').json()) == 5
         custom = api.post('/assistant/skills', json={'name': 'Revisão cuidadosa', 'keywords': 'contrato', 'instructions': 'Confira datas e destaque ambiguidades antes de sugerir qualquer compromisso.'}).json()
         with Session(api.app.state.engine) as db:
             chosen = assistant_skills.choose(db, 'Leia o contrato da proposta do cliente', image=True)
@@ -92,7 +92,7 @@ def test_skills_are_selective_bounded_and_can_be_disabled_or_added(tmp_path):
             assert assistant_skills.choose(db, 'imagem', image=True) == []
             assert any(item['id'] == custom['id'] for item in assistant_skills.choose(db, 'Revise este contrato'))
         assert api.get('/settings').json()['model'] == original_model
-        assert api.post('/assistant/skills', json={'name': 'Test', 'keywords': 'test', 'instructions': 'x' * 601}).status_code == 422
+        assert api.post('/assistant/skills', json={'name': 'Test', 'keywords': 'test', 'instructions': 'x' * 4001}).status_code == 422
         assert api.delete('/assistant/skills/vision').status_code == 400
         assert api.delete('/assistant/skills/' + custom['id']).status_code == 204
 

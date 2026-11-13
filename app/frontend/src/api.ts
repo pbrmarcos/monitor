@@ -318,6 +318,8 @@ export type AssistantSkill = {
   instructions: string;
   enabled: boolean;
   builtin: boolean;
+  source_markdown?: string;
+  source_name?: string;
 };
 export type AssistantDiagnostics = {
   model: string;

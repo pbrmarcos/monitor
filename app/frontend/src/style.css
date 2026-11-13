@@ -1937,6 +1937,18 @@ progress {
 .ai-skill > small {
   color: var(--muted);
 }
+.skill-source {
+  max-height: 24rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  color: var(--navy);
+  font-size: var(--text-caption);
+}
 .ai-skill details,
 .response-metrics {
   font-size: var(--text-caption);

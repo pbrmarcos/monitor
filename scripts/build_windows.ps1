@@ -9,7 +9,7 @@ if (-not $SkipInstall) {
 }
 Invoke-Checked { & $Python -m pytest app/backend/tests }
 Invoke-Checked { npm.cmd test }
-Invoke-Checked { & $Python -m PyInstaller --clean --noconfirm --onefile --name monitor-backend --hidden-import keyring.backends.Windows --collect-data tzdata --collect-all faster_whisper --collect-all ctranslate2 --collect-all av --exclude-module onnxruntime --paths app/backend --distpath app/desktop/src-tauri/binaries app/backend/run_backend.py }
+Invoke-Checked { & $Python -m PyInstaller --clean --noconfirm --onefile --name monitor-backend --hidden-import keyring.backends.Windows --collect-data monitor --collect-data tzdata --collect-all faster_whisper --collect-all ctranslate2 --collect-all av --exclude-module onnxruntime --paths app/backend --distpath app/desktop/src-tauri/binaries app/backend/run_backend.py }
 Invoke-Checked { & $Python scripts/desktop_smoke.py }
 Invoke-Checked { & 'app/desktop/src-tauri/binaries/monitor-backend.exe' --browser-smoke }
 Invoke-Checked { & $Python scripts/reminder_sidecar_smoke.py }

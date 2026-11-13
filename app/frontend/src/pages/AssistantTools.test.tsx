@@ -196,3 +196,65 @@ it("can disable a skill and create a custom skill without changing models", asyn
   ).toBeChecked();
   expect(calls.mock.calls.some(([path]) => path === "/settings")).toBe(false);
 });
+
+it("imports Markdown as a reviewable draft, preserves its original and supports editing", async () => {
+  const original = "# Escrita natural\n" + "Referência completa. ".repeat(500);
+  const active = "Reescreva mantendo valores, nomes e datas. ".repeat(20);
+  const draft = {
+    name: "Escrita natural",
+    description: "Revisar textos",
+    keywords: "reescrev",
+    instructions: active,
+    source_markdown: original,
+    source_name: "SKILL.md",
+    warnings: [],
+  };
+  const calls = vi
+    .spyOn(client, "api")
+    .mockImplementation(async (path, method, body) => {
+      if (path === "/assistant/skills/import") return draft as never;
+      if (method === "POST" || method === "PATCH")
+        return {
+          ...(body as object),
+          id: "custom-2",
+          enabled: true,
+          builtin: false,
+        } as never;
+      return [] as never;
+    });
+  const user = userEvent.setup();
+  render(<AssistantSkills connected />);
+  await user.upload(
+    screen.getByLabelText("Escolher arquivo de skill"),
+    new File([original], "SKILL.md", { type: "text/markdown" }),
+  );
+  expect(
+    await screen.findByDisplayValue("Escrita natural"),
+  ).toBeInTheDocument();
+  expect(screen.getByLabelText("Instruções")).toHaveValue(active);
+  expect(
+    calls.mock.calls.filter(([, method]) => method === "POST"),
+  ).toHaveLength(1); // prévia; não instala automaticamente
+  await user.click(screen.getByRole("button", { name: "Adicionar skill" }));
+  await user.click(
+    await screen.findByRole("button", {
+      name: "Editar skill: Escrita natural",
+    }),
+  );
+  await user.clear(screen.getByLabelText("Instruções"));
+  await user.type(
+    screen.getByLabelText("Instruções"),
+    "Preserve os números e remova os clichês.",
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Salvar alterações da skill" }),
+  );
+  expect(calls).toHaveBeenCalledWith(
+    "/assistant/skills/custom-2",
+    "PATCH",
+    expect.objectContaining({
+      source_markdown: original,
+      instructions: "Preserve os números e remova os clichês.",
+    }),
+  );
+});

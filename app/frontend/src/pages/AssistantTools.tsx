@@ -358,12 +358,52 @@ export function AssistantSkills({ connected }: { connected: boolean }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const importFile = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
     keywords: "",
     instructions: "",
+    source_markdown: "",
+    source_name: "",
   });
+  async function importSkill(file: File) {
+    setError("");
+    setWarnings([]);
+    if (file.size > 128 * 1024)
+      return setError("O arquivo deve ter até 128 KB.");
+    setBusy(true);
+    try {
+      const bytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = () =>
+          reject(new Error("Não foi possível ler o arquivo."));
+        reader.readAsArrayBuffer(file);
+      });
+      const markdown = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      const draft = await api<typeof form & { warnings: string[] }>(
+        "/assistant/skills/import",
+        "POST",
+        { filename: file.name, markdown },
+      );
+      const { warnings: notices, ...fields } = draft;
+      setForm(fields);
+      setWarnings(notices);
+      setEditing(null);
+    } catch (e) {
+      setError(
+        e instanceof TypeError
+          ? "Salve o arquivo em UTF-8 e tente novamente."
+          : (e as Error).message,
+      );
+    } finally {
+      setBusy(false);
+      if (importFile.current) importFile.current.value = "";
+    }
+  }
   useEffect(() => {
     if (connected)
       void api<AssistantSkill[]>("/assistant/skills")
@@ -380,15 +420,44 @@ export function AssistantSkills({ connected }: { connected: boolean }) {
       </div>
       <div className="panel-body">
         <p>
-          Skills orientam como responder a cada tarefa. O Monitor seleciona até
-          duas por pergunta, sem treinar pesos, carregar outro modelo ou ampliar
-          o contexto de 16 mil tokens. Elas não dão novas permissões ao
-          assistente.
+          Importe uma skill .md ou escreva suas instruções. O documento completo
+          fica guardado para consulta; somente as instruções ativas são enviadas
+          ao modelo. O Monitor usa até duas skills por pergunta, dentro do
+          contexto atual, com o mesmo modelo.
         </p>
         {!connected && (
           <p>Abra o aplicativo desktop para configurar as skills.</p>
         )}
         {error && <p role="alert">{error}</p>}
+        <input
+          ref={importFile}
+          type="file"
+          accept=".md,.markdown,.txt"
+          hidden
+          aria-label="Escolher arquivo de skill"
+          disabled={busy || !connected}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void importSkill(file);
+          }}
+        />
+        <div className="button-row">
+          <button
+            type="button"
+            disabled={busy || !connected}
+            onClick={() => importFile.current?.click()}
+          >
+            Importar skill .md
+          </button>
+          <span className="small muted">
+            UTF-8 · até 128 KB · revise antes de salvar
+          </span>
+        </div>
+        {warnings.map((message, index) => (
+          <p key={index} role="status" className="small">
+            {message}
+          </p>
+        ))}
         <div className="ai-skill-grid">
           {skills.map((skill) => (
             <article key={skill.id} className="ai-skill">
@@ -420,9 +489,41 @@ export function AssistantSkills({ connected }: { connected: boolean }) {
               <p>{skill.description}</p>
               <small>Gatilhos: {skill.keywords}</small>
               <details>
-                <summary>Ver instruções</summary>
+                <summary>
+                  Ver instruções ativas ·{" "}
+                  {skill.instructions.length.toLocaleString("pt-BR")} caracteres
+                </summary>
                 <p>{skill.instructions}</p>
               </details>
+              {skill.source_markdown && (
+                <details>
+                  <summary>
+                    Documento original: {skill.source_name || "Markdown"}
+                  </summary>
+                  <pre className="skill-source">{skill.source_markdown}</pre>
+                </details>
+              )}
+              {!skill.builtin && (
+                <button
+                  className="link"
+                  disabled={busy}
+                  onClick={() => {
+                    setEditing(skill.id);
+                    setWarnings([]);
+                    setError("");
+                    setForm({
+                      name: skill.name,
+                      description: skill.description || "",
+                      keywords: skill.keywords,
+                      instructions: skill.instructions,
+                      source_markdown: skill.source_markdown || "",
+                      source_name: skill.source_name || "",
+                    });
+                  }}
+                >
+                  Editar skill: {skill.name}
+                </button>
+              )}
               {!skill.builtin &&
                 (deleting !== skill.id ? (
                   <button
@@ -461,7 +562,7 @@ export function AssistantSkills({ connected }: { connected: boolean }) {
             </article>
           ))}
         </div>
-        <h3>Adicionar skill</h3>
+        <h3>{editing ? "Editar skill" : "Adicionar skill"}</h3>
         <form
           className="form-grid"
           onSubmit={async (e) => {
@@ -470,16 +571,24 @@ export function AssistantSkills({ connected }: { connected: boolean }) {
             setError("");
             try {
               const saved = await api<AssistantSkill>(
-                "/assistant/skills",
-                "POST",
+                editing ? `/assistant/skills/${editing}` : "/assistant/skills",
+                editing ? "PATCH" : "POST",
                 form,
               );
-              setSkills((old) => [...old, saved]);
+              setSkills((old) =>
+                editing
+                  ? old.map((item) => (item.id === editing ? saved : item))
+                  : [...old, saved],
+              );
+              setEditing(null);
+              setWarnings([]);
               setForm({
                 name: "",
                 description: "",
                 keywords: "",
                 instructions: "",
+                source_markdown: "",
+                source_name: "",
               });
             } catch (e) {
               setError((e as Error).message);
@@ -524,17 +633,52 @@ export function AssistantSkills({ connected }: { connected: boolean }) {
             <textarea
               required
               minLength={10}
-              maxLength={600}
-              rows={4}
+              maxLength={4000}
+              rows={8}
+              aria-label="Instruções"
+              aria-describedby="skill-active-help"
               value={form.instructions}
               onChange={(e) =>
                 setForm({ ...form, instructions: e.target.value })
               }
             />
           </label>
+          <p id="skill-active-help" className="small muted">
+            {form.instructions.length.toLocaleString("pt-BR")} / 4.000
+            caracteres ativos. O original pode ter até 100 mil caracteres e não
+            é enviado automaticamente. Skills orientam respostas e não executam
+            scripts ou acessam arquivos.
+          </p>
+          {form.source_markdown && (
+            <details className="wide">
+              <summary>
+                Referência importada: {form.source_name} ·{" "}
+                {form.source_markdown.length.toLocaleString("pt-BR")} caracteres
+              </summary>
+              <pre className="skill-source">{form.source_markdown}</pre>
+            </details>
+          )}
           <button className="primary" disabled={!connected || busy}>
-            Adicionar skill
+            {editing ? "Salvar alterações da skill" : "Adicionar skill"}
           </button>
+          {editing && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(null);
+                setForm({
+                  name: "",
+                  description: "",
+                  keywords: "",
+                  instructions: "",
+                  source_markdown: "",
+                  source_name: "",
+                });
+              }}
+            >
+              Cancelar edição
+            </button>
+          )}
         </form>
       </div>
     </section>

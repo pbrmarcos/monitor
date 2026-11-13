@@ -22,6 +22,20 @@ O modelo continua sendo o selecionado em Configurações, inclusive `qwen3.5:4b-
 
 Cada pergunta recebe no máximo duas skills, escolhidas por palavras-chave e presença de imagem. Isso acrescenta texto ao prompt e pode aumentar um pouco a leitura do contexto, mas mantém a configuração de 16.384 tokens. Não há promessa de consumo total fixo de VRAM: outros programas, imagens e o modelo escolhido também influenciam.
 
-É possível desativar qualquer skill incluída e criar até oito personalizadas, com nome, descrição, palavras-chave e até 600 caracteres de instruções. Instruções orientam a resposta; as ações disponíveis continuam limitadas às ferramentas implementadas pelo aplicativo. Dados atuais do trabalho continuam vindo do banco.
+É possível desativar qualquer skill incluída e criar até oito personalizadas, com nome, descrição, palavras-chave e até 4.000 caracteres de instruções ativas. Instruções orientam a resposta; as ações disponíveis continuam limitadas às ferramentas implementadas pelo aplicativo. Dados atuais do trabalho continuam vindo do banco.
+
+### Importar arquivos Markdown (0.10.1-alpha.1)
+
+Em **Assistente → Skills → Importar skill .md**, escolha um arquivo `.md`, `.markdown` ou `.txt` em UTF-8, de até 128 KB e 100 mil caracteres. Revise nome, descrição, palavras-chave e instruções ativas antes de salvar. Importar preenche um rascunho; não ativa automaticamente o conteúdo.
+
+O documento completo fica guardado no SQLite para consulta. Somente as instruções ativas são enviadas ao modelo. Campos textuais simples `name`, `description` e `keywords` no cabeçalho `---` são reconhecidos; não há execução de YAML, scripts, comandos, links, ferramentas ou arquivos referenciados. Isso não instala plugins de Codex, Claude ou outros agentes.
+
+Arquivos curtos podem fornecer diretamente as instruções. Em arquivos longos, use uma seção **`## Instruções ativas`** de até 4.000 caracteres e coloque o restante em outra seção, como **`## Referência`**. Sem essa seção, se o corpo exceder o limite, o Monitor preserva o original e pede uma adaptação revisada; não trunca nem resume o documento automaticamente. O texto da referência não participa de busca ou recuperação automática nesta versão.
+
+Skills personalizadas podem ser editadas, preservando a referência. As skills da versão anterior continuam funcionando após a migração.
+
+A skill incluída **Remover padrões de escrita de IA** é uma [adaptação curta](../app/backend/monitor/skills/remover-padroes-ia.md) para revisões e reescritas, com prioridade nesse tipo de pedido. Ela não orienta todas as conversas. O original fornecido pelo usuário tinha 34.334 caracteres; o aplicativo distribui a adaptação, não esse documento inteiro.
+
+Nos dois textos fictícios testados no Qwen3.5 4B Q4_K_M, a versão adaptada usou entradas de aproximadamente 770 tokens e preservou os dados. O documento completo usou cerca de 8.440 tokens; em um dos casos, o modelo misturou a condição de pagamento com a entrega e manteve expressões genéricas. A adaptação também manteve um termo genérico em uma saída. Isso demonstra a necessidade de revisar o resultado; não mede uma taxa geral de acerto nem garante o cumprimento de todas as regras. O contexto permaneceu em 16.384 tokens e a alocação do modelo reportada pelo Ollama foi de aproximadamente 3,31 GiB de VRAM, excluindo o uso dos outros programas.
 
 Recursos incluídos a partir da versão **0.10.0-alpha.1**. Para atualizar o aplicativo instalado, use **Configurações → Verificar atualizações**, conclua a instalação e reabra o Monitor. Também é possível usar o instalador `.exe` ou `.msi` da release correspondente no GitHub.

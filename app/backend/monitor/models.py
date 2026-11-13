@@ -329,6 +329,8 @@ class AssistantSkill(SQLModel, table=True):
     description: str = ''
     keywords: str
     instructions: str
+    source_markdown: str = ''
+    source_name: str = ''
 
 
 class ChatAttachment(SQLModel, table=True):
