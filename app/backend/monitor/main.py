@@ -28,7 +28,7 @@ from .models import AiJob, Demand, Email, EmailAccount, EmailAnalysis, EmailDraf
 from .models import Conversation, ChatTurn, AssistantRule, Reminder
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 
-VERSION = '0.9.0-alpha.1'
+VERSION = '0.9.1-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
