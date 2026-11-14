@@ -297,6 +297,8 @@ export type InferenceMetrics = {
   total_seconds?: number;
   first_token_seconds?: number | null;
   wall_seconds?: number;
+  model_calls?: number;
+  attempts?: number;
 };
 export type AssistantRecord = {
   id: number;
@@ -336,6 +338,11 @@ export type AssistantDiagnostics = {
     expires_at: string;
   }[];
 };
+export type DraftBundle = {
+  kind: "sequence" | "alternatives";
+  items: { label: string; text: string }[];
+  method?: "guided";
+};
 export type ChatAction = {
   kind: "reminder" | "demand";
   id: number;
@@ -354,6 +361,8 @@ export async function conversationStream(
     done: (conversation?: Conversation) => void;
     action?: (result: ChatAction) => void;
     metrics?: (result: InferenceMetrics) => void;
+    drafts?: (result: DraftBundle) => void;
+    status?: (text: string) => void;
     front_id?: number;
     attachments?: number[];
     task?: "next_messages";
@@ -388,6 +397,8 @@ export async function conversationStream(
       if (item.rule) on.rule(item.rule);
       if (item.action) on.action?.(item.action);
       if (item.metrics) on.metrics?.(item.metrics);
+      if (item.drafts) on.drafts?.(item.drafts);
+      if (item.status) on.status?.(item.status);
       if (item.done) {
         finished = true;
         on.done(item.conversation);

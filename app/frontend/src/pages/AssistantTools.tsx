@@ -33,7 +33,9 @@ export function ResponseMetrics({ value }: { value: InferenceMetrics }) {
     ["Geração", value.generation_seconds, " s"],
     ["Leitura do contexto", value.prompt_seconds, " s"],
     ["Carga do modelo", value.load_seconds, " s"],
-    ["Primeiro texto", value.first_token_seconds, " s"],
+    ["Primeiro token do modelo", value.first_token_seconds, " s"],
+    ["Chamadas ao modelo", value.model_calls, ""],
+    ["Tentativas por mensagem (máx.)", value.attempts, ""],
     ["Tempo total observado", value.wall_seconds, " s"],
   ];
   return (

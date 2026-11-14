@@ -29,7 +29,7 @@ from .models import Conversation, ChatTurn, AssistantRule, Reminder
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 from .llm_runtime import ModelRuntime
 
-VERSION = '0.10.1-alpha.1'
+VERSION = '0.11.0-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
@@ -141,7 +141,7 @@ def migrate(engine):
         for name in ('source_markdown', 'source_name'):
             if name not in skill_columns:
                 connection.execute(text(f"ALTER TABLE assistantskill ADD COLUMN {name} VARCHAR NOT NULL DEFAULT ''"))
-        for version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11):  # 11: referência Markdown das skills
+        for version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):  # 12: múltiplos rascunhos estruturados
             connection.execute(text('INSERT OR IGNORE INTO schema_migrations VALUES (:v)'), {'v': version})
 
 

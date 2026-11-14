@@ -20,8 +20,10 @@ import {
   conversationStream,
   VoiceStatus,
   InferenceMetrics,
+  DraftBundle,
 } from "../api";
 import { Composer } from "./Composer";
+import { DraftMessages } from "./DraftMessages";
 import {
   AssistantRecords,
   AssistantSkills,
@@ -42,6 +44,8 @@ type ChatMessage = {
   action?: ChatAction;
   attachments?: { id: number; name: string; kind: string }[];
   metrics?: InferenceMetrics;
+  drafts?: DraftBundle;
+  status?: string;
 };
 const draft = (mode: ChatMode) => `new-${mode}`;
 
@@ -158,6 +162,9 @@ export function useAssistant(m: Monitor) {
         },
         metrics: (result) =>
           patchAnswer(key, (last) => ({ ...last, metrics: result })),
+        drafts: (result) =>
+          patchAnswer(key, (last) => ({ ...last, drafts: result })),
+        status: (status) => patchAnswer(key, (last) => ({ ...last, status })),
         done: (conversation) => {
           if (conversation)
             setConversations((old) => [
@@ -396,7 +403,11 @@ export function Chat({
               {message.role === "assistant" && !message.error ? (
                 message.text ? (
                   <>
-                    <Answer text={message.text} chat={chat} />
+                    {message.drafts ? (
+                      <DraftMessages bundle={message.drafts} />
+                    ) : (
+                      <Answer text={message.text} chat={chat} />
+                    )}
                     {message.metrics && (
                       <ResponseMetrics value={message.metrics} />
                     )}
@@ -419,10 +430,14 @@ export function Chat({
                     )}
                   </>
                 ) : (
-                  <span className="typing-indicator" aria-label="Pensando…">
+                  <span
+                    className="typing-indicator"
+                    aria-label={message.status || "Pensando…"}
+                  >
                     <span />
                     <span />
                     <span />
+                    {message.status && <small>{message.status}</small>}
                   </span>
                 )
               ) : (

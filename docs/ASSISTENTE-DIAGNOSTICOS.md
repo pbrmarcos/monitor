@@ -2,6 +2,18 @@
 
 Na página Assistente há três abas: **Conversas**, **Registros e dados** e **Skills**.
 
+## Sequências e versões de mensagens (0.11.0-alpha.1)
+
+Pedidos como “escreva 4 mensagens próximas” geram uma sequência de quatro passos; “4 mensagens diferentes com abordagens diferentes” ou “uma mensagem em 4 tons” geram alternativas para escolher uma. A interpretação automática cobre quantidades de 2 a 8, inclusive números por extenso e “mensagems”. Fora desse fluxo, o pedido continua na conversa comum.
+
+Cada versão tem um botão de copiar. Nas alternativas, as abas mostram um tom de cada vez. A sequência mantém todas as mensagens visíveis. O usuário ainda revisa e envia as mensagens; não há envio automático. As abas permanecem ao reabrir uma conversa e somem com sua exclusão.
+
+Para imagens, o mesmo Qwen primeiro transcreve e separa participantes, fatos e pendências. Na redação, a transcrição inteira e respostas anteriores que podem estar erradas não disputam o lugar do resumo atual. O contexto da imagem e do modelo é guardado na própria conversa, sem compartilhamento entre conversas. A imagem mais recente entre os turnos considerados pode ser retomada automaticamente numa correção que pede novas mensagens.
+
+Quando a fonte identifica um orçamento com especificações a confirmar e um item recebido cuja manutenção ou devolução depende do cliente, o Monitor oferece quatro rascunhos guiados com esses campos. Esse fluxo não delega novamente ao modelo a história do pedido nem inventa prazo de fábrica. Nos outros casos, a redação usa chamadas curtas por item, com uma tentativa de reparo para formato, repetições e algumas inconsistências de referências, números e prazos. Essas checagens não demonstram precisão semântica geral.
+
+Métricas somam o trabalho das chamadas feitas para atender o pedido, incluindo leitura da imagem e tentativas descartadas. O contexto lido pode ser reutilizado sem inferência nova; nesses casos o painel informa zero chamadas, sem fabricar uma velocidade de geração. O raciocínio interno do modelo não é armazenado nem mostrado.
+
 ## Imagens
 
 Clique no anexo de imagem de uma mensagem para abrir o visualizador. Ele oferece zoom de 50% a 300%, ajuste à tela e fechamento por Esc. Funciona também ao reabrir uma conversa salva e no assistente lateral da visão geral. Mostra a imagem que o Monitor armazenou; capturas grandes podem ter sido reduzidas antes do envio. A consulta exige a mesma autenticação local das conversas e não usa URLs com tokens. Excluir a conversa exclui seus anexos.

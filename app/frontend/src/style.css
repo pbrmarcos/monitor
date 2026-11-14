@@ -1835,6 +1835,75 @@ progress {
   grid-template-columns: 1fr 1fr;
 }
 
+.message:has(.draft-bundle) {
+  width: 100%;
+  max-width: 100%;
+}
+.draft-bundle {
+  width: 100%;
+  white-space: normal;
+}
+.draft-intro {
+  color: var(--muted);
+  font-size: var(--text-caption);
+  margin-bottom: var(--s3);
+}
+.draft-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  padding-bottom: var(--s3);
+  margin-bottom: var(--s4);
+  border-bottom: 1px solid var(--divider);
+}
+.draft-tabs button {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: var(--control-sm);
+  white-space: normal;
+  text-align: left;
+  line-height: 1.4;
+  padding: var(--s2);
+}
+.draft-tabs [aria-selected="true"] {
+  background: var(--navy);
+  color: var(--on-navy);
+  border-color: var(--navy);
+}
+.draft-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 80ch;
+}
+.draft-copy {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--s4);
+}
+.draft-sequence {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--s4);
+}
+.draft-sequence li {
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--divider);
+}
+.draft-sequence .split {
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+}
+.draft-sequence strong {
+  font-size: var(--text-small);
+}
+.typing-indicator small {
+  margin-left: var(--s2);
+  font-size: var(--text-caption);
+  color: var(--muted);
+}
+
 /* Conversas, registros locais e skills */
 .assistant-workspace {
   display: grid;

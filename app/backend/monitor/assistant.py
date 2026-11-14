@@ -19,8 +19,8 @@ from fastapi.responses import JSONResponse
 from starlette.background import BackgroundTask
 from sqlalchemy import text as sql_text
 
-from . import ai, attachments, prefs, replies, assistant_actions, assistant_skills, assistant_records
-from .models import AssistantRule, AssistantAction, AssistantRun, AssistantSkill, ChatMetrics, Setting, ChatAttachment, ChatTurn, Conversation, now
+from . import ai, attachments, prefs, replies, assistant_actions, assistant_skills, assistant_records, assistant_drafts
+from .models import AssistantRule, AssistantAction, AssistantRun, AssistantSkill, ChatMetrics, ChatDraft, Setting, ChatAttachment, ChatTurn, Conversation, now
 from .models import Demand, Email, EmailAccount, EmailAnalysis, Reminder, Site, SiteCheck, as_utc
 from .llm_runtime import CONTEXT, KEEP_ALIVE
 from .deadlines import fold
@@ -203,9 +203,9 @@ def fit_prompt(prefix, data, messages, *, mode):
 
 
 def stream(model: str, data: str, messages: list[dict], num_ctx: int = CONTEXT, *, mode: str = 'work', rules: list[str] | None = None,
-           extra_system: str = ''):
+           extra_system: str = '', response_format=None, system_prompt=None):
     """Gera linhas NDJSON: {"delta": texto} durante a resposta e {"done": true} ou {"error": texto} ao final."""
-    system = GENERAL_SYSTEM if mode == 'general' else SYSTEM
+    system = system_prompt or (GENERAL_SYSTEM if mode == 'general' else SYSTEM)
     if rules is not None:
         system += LEARNING
         if rules:
@@ -216,6 +216,8 @@ def stream(model: str, data: str, messages: list[dict], num_ctx: int = CONTEXT, 
     payload = {'model': model, 'stream': True, 'think': False, 'keep_alive': KEEP_ALIVE,
                'messages': [{'role': 'system', 'content': system}, *messages],
                'options': {'num_ctx': num_ctx, 'temperature': 0.2}}
+    if response_format is not None:
+        payload['format'] = response_format
 
     line = _line
     started, first_token = time.perf_counter(), None
@@ -344,7 +346,7 @@ def conversation_error(engine, identifier, message, partial=''):
     return _line({'error': message})
 
 
-def decorate(db: Session, turns: list, question_id: int) -> tuple[list[dict], bool]:
+def decorate(db: Session, turns: list, question_id: int, *, reuse_image=False) -> tuple[list[dict], bool]:
     """Monta o histórico; reenvia imagem recente apenas quando o usuário a referencia explicitamente."""
     rows = db.exec(select(ChatAttachment).where(ChatAttachment.turn_id.in_([turn.id for turn in turns]))).all() if turns else []
     by_turn: dict[int, list[ChatAttachment]] = {}
@@ -379,8 +381,8 @@ def decorate(db: Session, turns: list, question_id: int) -> tuple[list[dict], bo
     if history and not history[-1].get('images'):
         question = fold(turns[-1].content)
         reference = re.search(r'\b(?:imagem|print|foto|captura)\s+(?:anterior|acima|que (?:enviei|mandei))|\b(?:essa|esta|nessa|nesta|na|no|do|da|desse|dessa|aquele|aquela)\s+(?:imagem|print|foto|captura)\b', question)
-        if reference and not re.search(r'\b(?:ignore|desconsidere|esqueca|sem usar)\b', question):
-            recent_ids = {turn.id for turn in turns[-7:-1]}
+        if (reference or reuse_image) and not re.search(r'\b(?:ignore|desconsidere|esqueca|sem usar)\b', question):
+            recent_ids = {turn.id for turn in (turns[:-1] if reuse_image else turns[-7:-1])}
             candidates = [row for row in rows if row.kind == 'image' and row.turn_id in recent_ids]
             if candidates:
                 image = max(candidates, key=lambda row: row.id)
@@ -393,6 +395,7 @@ def decorate(db: Session, turns: list, question_id: int) -> tuple[list[dict], bo
 def _converse(engine, conversation_id: int, content: str, today: date, *, vault=None, demo=False, front_id=None,
               attachment_ids=None, task=None, trace=None):
     """Guarda a pergunta, transmite a resposta e, ao final, guarda a resposta e as regras aprendidas."""
+    draft_request = assistant_drafts.plan(content)
     with Session(engine) as db:
         db.execute(sql_text('BEGIN IMMEDIATE'))
         conversation = db.get(Conversation, conversation_id)
@@ -420,9 +423,9 @@ def _converse(engine, conversation_id: int, content: str, today: date, *, vault=
         mode = conversation.mode
         turns = db.exec(select(ChatTurn).where(ChatTurn.conversation_id == conversation_id, ChatTurn.role.in_(('user', 'assistant', 'action')))
                         .order_by(ChatTurn.id.desc()).limit(24)).all()
-        history, attached = decorate(db, [turn for turn in reversed(turns) if turn.id == question_id or not (turn.role == 'user' and explicit_preference(turn.content))], question_id)
+        history, attached = decorate(db, [turn for turn in reversed(turns) if turn.id == question_id or not (turn.role == 'user' and explicit_preference(turn.content))], question_id, reuse_image=bool(draft_request))
         extra = ATTACHMENTS if attached else ''
-        if task == 'next_messages':
+        if task == 'next_messages' and not draft_request:
             extra += NEXT_MESSAGES
         selected_skills = assistant_skills.choose(db, content + ' ' + (task or ''), image=any(item.get('images') for item in history))
         extra += assistant_skills.prompt(selected_skills)
@@ -437,8 +440,15 @@ def _converse(engine, conversation_id: int, content: str, today: date, *, vault=
         rules = [rule.text for rule in db.exec(select(AssistantRule).order_by(AssistantRule.id)).all()]
         model = prefs_model(db)
         data = context(db, today) if mode == 'work' else ''
+        source = None
+        if draft_request and (image_key := assistant_drafts.image_key(history)):
+            for saved in db.exec(select(ChatDraft).join(ChatTurn, ChatTurn.id == ChatDraft.answer_id).where(ChatTurn.conversation_id == conversation_id).order_by(ChatDraft.answer_id.desc()).limit(8)).all():
+                previous = json.loads(saved.data)
+                if previous.get('image_key') == image_key and previous.get('source_model') == model and isinstance(previous.get('source'), dict) and all(field in previous['source'] for field in assistant_drafts.SOURCE_FIELDS):
+                    source = previous['source']
+                    break
 
-    if not task and (executed := assistant_actions.handle(engine, conversation_id, question_id, content, front_id=front_id, vault=vault, demo=demo)):
+    if not task and not draft_request and (executed := assistant_actions.handle(engine, conversation_id, question_id, content, front_id=front_id, vault=vault, demo=demo)):
         if trace is not None:
             trace['kind'] = 'action'
             trace['skills'] = []  # a ferramenta foi executada antes da inferência
@@ -456,9 +466,20 @@ def _converse(engine, conversation_id: int, content: str, today: date, *, vault=
             yield _line({'done': True, **({'conversation': conversation_out(current)} if current else {})})
         return
 
-    answer, received, rule_filter = '', 0, RuleFilter()
-    for raw in stream(model, data, history, window, mode=mode, rules=rules, extra_system=extra):
+    answer, received, rule_filter, bundle = '', 0, RuleFilter(), None
+    if draft_request:
+        events = (_line(item) for item in assistant_drafts.generate(stream, model, data, history, window, request=draft_request, mode=mode, rules=rules, extra=extra, source=source))
+    else:
+        events = stream(model, data, history, window, mode=mode, rules=rules, extra_system=extra)
+    for raw in events:
         item = json.loads(raw)
+        if item.get('status'):
+            yield _line({'status': item['status']})
+        if item.get('drafts'):
+            bundle = item['drafts']
+            answer = assistant_drafts.plain(bundle)
+            yield _line({'delta': answer})
+            yield _line({'drafts': bundle})
         if trace is not None and item.get('metrics'):
             trace['metrics'] = item['metrics']
         if 'error' in item:
@@ -508,6 +529,9 @@ def _converse(engine, conversation_id: int, content: str, today: date, *, vault=
         db.add(answer_turn)
         conversation.updated_at = now()
         db.add(conversation)
+        if bundle:
+            db.flush()
+            db.add(ChatDraft(answer_id=answer_turn.id, data=json.dumps(bundle, ensure_ascii=False)))
         if trace and trace.get('metrics'):
             db.flush()
             db.add(ChatMetrics(answer_id=answer_turn.id, data=json.dumps(trace['metrics'])))
@@ -630,6 +654,7 @@ def router(engine, session, *, vault=None, demo=False):
         turns = db.exec(select(ChatTurn).where(ChatTurn.conversation_id == identifier).order_by(ChatTurn.id)).all()
         actions = {item.answer_id: json.loads(item.result).get('action') for item in db.exec(select(AssistantAction).where(AssistantAction.conversation_id == identifier)).all()}
         measured = {item.answer_id: json.loads(item.data) for item in db.exec(select(ChatMetrics).join(ChatTurn, ChatTurn.id == ChatMetrics.answer_id).where(ChatTurn.conversation_id == identifier)).all()}
+        drafts = {item.answer_id: json.loads(item.data) for item in db.exec(select(ChatDraft).join(ChatTurn, ChatTurn.id == ChatDraft.answer_id).where(ChatTurn.conversation_id == identifier)).all()}
         files: dict[int, list[dict]] = {}
         for row in db.exec(select(ChatAttachment).where(ChatAttachment.conversation_id == identifier, ChatAttachment.turn_id != None)).all():  # noqa: E711
             files.setdefault(row.turn_id, []).append({'id': row.id, 'name': row.name, 'kind': row.kind})
@@ -637,6 +662,7 @@ def router(engine, session, *, vault=None, demo=False):
                  **({'error': True} if turn.role == 'error' else {}),
                  **({'action': actions[turn.id]} if actions.get(turn.id) else {}),
                  **({'metrics': measured[turn.id]} if measured.get(turn.id) else {}),
+                 **({'drafts': drafts[turn.id]} if drafts.get(turn.id) else {}),
                  **({'attachments': files[turn.id]} if files.get(turn.id) else {})} for turn in turns]
 
     @api.post('/conversations/{identifier}/messages')
@@ -669,6 +695,8 @@ def router(engine, session, *, vault=None, demo=False):
         for turn in db.exec(select(ChatTurn).where(ChatTurn.conversation_id == identifier)).all():
             if measured := db.get(ChatMetrics, turn.id):
                 db.delete(measured)
+            if saved := db.get(ChatDraft, turn.id):
+                db.delete(saved)
             db.delete(turn)
         for action in db.exec(select(AssistantAction).where(AssistantAction.conversation_id == identifier)).all():
             db.delete(action)

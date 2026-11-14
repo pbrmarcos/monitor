@@ -307,6 +307,11 @@ class ChatMetrics(SQLModel, table=True):
     data: str = '{}'
 
 
+class ChatDraft(SQLModel, table=True):
+    answer_id: int = Field(primary_key=True)
+    data: str = '{}'
+
+
 class AssistantRun(SQLModel, table=True):
     __table_args__ = {'sqlite_autoincrement': True}
     id: int | None = Field(default=None, primary_key=True)

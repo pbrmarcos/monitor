@@ -1,6 +1,14 @@
 # Validação
 
-Situação em 13/11/2026, versão `0.10.1-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 13/11/2026, versão `0.11.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Quantidade e tons dos rascunhos (0.11.0-alpha.1)
+
+161 testes de backend e 26 de interface passaram localmente; TypeScript/Vite compilou. Casos de regressão cobrem quantidade por número e por extenso, a grafia “mensagems”, sequência versus alternativas, rejeição de cópias, reparo limitado, referências e números não presentes no contexto, contexto visual reutilizado, persistência das abas e exclusão da conversa. O teste visual passou em 1400, 860 e 600 px, incluindo as quatro abas, cópia somente do texto selecionado e sequência com quatro itens.
+
+O problema reportado foi confirmado por comparação local dos hashes: três respostas de 312 caracteres eram idênticas. A conversa original não foi alterada. Em banco temporário e com o mesmo Qwen3.5 4B Q4_K_M, os três pedidos reportados retornaram respectivamente quatro passos, quatro alternativas e quatro tons. A leitura inicial da imagem e organização guiada levou cerca de 13 segundos; as versões seguintes reutilizaram o contexto local sem nova inferência. Essas durações são observações locais, não garantia de desempenho.
+
+As tentativas de apenas impor JSON/quantidade ou pedir redação livre ao modelo ainda confundiram papéis e trouxeram pendências antigas. O fluxo comercial guiado usa os campos lidos da imagem para separar confirmação das especificações e decisão sobre item recebido. O restante da redação usa objetivos por item e checagens limitadas; isso não demonstra que o modelo entende qualquer pedido ou que nunca altera fatos. A transcrição da imagem ainda pode errar. Os dados do cliente e as imagens usados na reprodução ficaram somente em arquivos temporários locais; os testes publicados usam exemplos fictícios.
 
 ## Skills Markdown e escrita natural (0.10.1-alpha.1)
 

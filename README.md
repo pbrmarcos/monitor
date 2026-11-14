@@ -2,7 +2,7 @@
 
 Central de operação pessoal com IA local para reunir demandas, e-mails, acompanhamento comercial, sites, redes sociais e arquivos.
 
-**Estado: versão `0.10.1-alpha.1`.** Demandas, kanban, e-mails IMAP, triagem local, sugestões, pasta de arquivos, backups, exportação, agenda e central de avisos. Inclui checagens dos sites e fila de formulários com relay para VPS. O assistente conversa com o modelo local sobre os seus dados e as demandas com data podem ir para o [Google Agenda](docs/AGENDA-GOOGLE.md). O chat oferece [visualizador de imagens, métricas, registros e skills](docs/ASSISTENTE-DIAGNOSTICOS.md). Perfis do [Instagram](docs/REDES-SOCIAIS.md) aparecem em cartões com os números da semana; perfil, frentes e cores são personalizáveis e o aplicativo [se atualiza](docs/ATUALIZACOES.md) por um botão. WhatsApp e catálogo de arquivos ainda não foram entregues. Consulte a [validação](docs/VALIDATION.md).
+**Estado: versão `0.11.0-alpha.1`.** Demandas, kanban, e-mails IMAP, triagem local, sugestões, pasta de arquivos, backups, exportação, agenda e central de avisos. Inclui checagens dos sites e fila de formulários com relay para VPS. O assistente conversa com o modelo local sobre os seus dados e as demandas com data podem ir para o [Google Agenda](docs/AGENDA-GOOGLE.md). O chat oferece [visualizador de imagens, métricas, registros e skills](docs/ASSISTENTE-DIAGNOSTICOS.md). Perfis do [Instagram](docs/REDES-SOCIAIS.md) aparecem em cartões com os números da semana; perfil, frentes e cores são personalizáveis e o aplicativo [se atualiza](docs/ATUALIZACOES.md) por um botão. WhatsApp e catálogo de arquivos ainda não foram entregues. Consulte a [validação](docs/VALIDATION.md).
 
 ## Objetivo
 
