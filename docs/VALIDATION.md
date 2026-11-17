@@ -1,6 +1,10 @@
 # Validação
 
-Situação em 13/11/2026, versão `0.11.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+Situação em 13/11/2026, versão `0.12.0-alpha.1`. O histórico abaixo separa testes simulados, verificações reais e validações manuais ainda pendentes.
+
+## Central de prioridades (0.12.0-alpha.1)
+
+161 testes de backend e 34 de interface passaram localmente; TypeScript/Vite compilou e o teste visual (`scripts/ui_smoke.mjs`) passou com os dados de demonstração. Os novos testes cobrem o agrupamento, a ordem (orçamento primeiro, depois quem espera há mais tempo), a ausência de duplicidade entre sugestão e e-mail, o filtro por frente e a contagem de e-mails. A central ainda não foi conferida com os e-mails e contas reais, e a correção do aviso repetido de posts do Instagram não tem teste automatizado, pois depende do coletor do Chrome.
 
 ## Quantidade e tons dos rascunhos (0.11.0-alpha.1)
 

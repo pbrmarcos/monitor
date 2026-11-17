@@ -29,7 +29,7 @@ from .models import Conversation, ChatTurn, AssistantRule, Reminder
 from .secrets_store import KeyringStore, MemoryStore, SecretError
 from .llm_runtime import ModelRuntime
 
-VERSION = '0.11.0-alpha.1'
+VERSION = '0.12.0-alpha.1'
 Stage = Literal['novo', 'qualificacao', 'preparar_proposta', 'proposta_enviada', 'acompanhar', 'ganho', 'perdido']
 
 
