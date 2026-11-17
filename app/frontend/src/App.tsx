@@ -8,6 +8,8 @@ import {
   LayoutDashboard,
   Mail,
   MessageSquare,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
   Search,
   Settings,
@@ -114,11 +116,28 @@ export default function App() {
       .catch(() => {});
   }, [detail, connected]);
 
+  const [assistantOpen, setAssistantOpen] = useState(() => {
+    try {
+      return localStorage.getItem("monitor:assistant") !== "closed";
+    } catch {
+      return true;
+    }
+  });
+  const toggleAssistant = () =>
+    setAssistantOpen((open) => {
+      try {
+        localStorage.setItem("monitor:assistant", open ? "closed" : "open");
+      } catch {
+        /* sem armazenamento: o estado vale só nesta sessão */
+      }
+      return !open;
+    });
   const ready = m.connected || m.preview;
   const overview = m.page === "Visão geral" && ready;
+  const showAssistant = overview && assistantOpen;
   const current = nav[m.page];
   return (
-    <div className={`app ${overview ? "with-assistant" : ""}`}>
+    <div className={`app ${showAssistant ? "with-assistant" : ""}`}>
       <aside className="sidebar">
         <a
           className="brand"
@@ -188,6 +207,23 @@ export default function App() {
             <div className="page-actions">
               {m.preview && (
                 <span className="badge">Demonstração · dados fictícios</span>
+              )}
+              {overview && (
+                <button
+                  className="ghost"
+                  onClick={toggleAssistant}
+                  aria-expanded={assistantOpen}
+                  aria-label={
+                    assistantOpen ? "Recolher assistente" : "Abrir assistente"
+                  }
+                >
+                  {assistantOpen ? (
+                    <PanelRightClose size={18} />
+                  ) : (
+                    <PanelRightOpen size={18} />
+                  )}
+                  Assistente
+                </button>
               )}
               <button
                 className="primary"
@@ -298,7 +334,7 @@ export default function App() {
           )}
         </div>
       </main>
-      {overview && (
+      {showAssistant && (
         <aside className="assistant" aria-label="Assistente">
           <AssistantHeader a={assistant} />
           <Chat chat={assistant.work} compact />

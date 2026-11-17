@@ -2,61 +2,159 @@ import {
   Activity,
   ArrowRight,
   ArrowUpRight,
-  ChevronRight,
   CircleCheck,
   CircleDashed,
   Globe,
   Mail,
-  Plus,
-  Sparkles,
   Workflow,
 } from "lucide-react";
-import { useState } from "react";
-import { Demand, importanceLabels, stages } from "../api";
 import { today } from "../demo";
+import {
+  awaitingMail,
+  buildPriorities,
+  groupLabels,
+  groupOrder,
+  mailCounts,
+  PriorityItem,
+  waitingLabel,
+} from "../priorities";
 import type { Monitor } from "../store";
-import { fresh, siteStatus, useSites } from "./Sites";
+import { fresh, Site, siteStatus, useSites } from "./Sites";
 import {
   Avatar,
-  dateLabel,
   Empty,
   frontLabel,
   Panel,
   sample,
-  senderName,
-  Tabs,
 } from "../ui";
 
-type QueueTab = "Hoje" | "Todas" | "Sugestões da IA";
+const channelLabel = (channel: string) =>
+  channel === "manual" ? "criada por você" : channel;
 
-export function DemandRows({ items, m }: { items: Demand[]; m: Monitor }) {
-  if (!items.length)
-    return <Empty icon={CircleCheck} text="Tudo em dia por aqui." />;
-  return (
-    <div>
-      {items.map((d) => (
-        <button className="row" key={d.id} onClick={() => m.setDetail(d)}>
-          <span className="row-body">
-            <strong className="truncate">{d.title}</strong>
-            <small>
-              {frontLabel(d.front_id)} ·{" "}
-              {d.channel === "manual" ? "Criada por você" : d.channel}
-            </small>
-          </span>
-          <span
-            className={`row-meta ${d.due && d.due < today() ? "overdue" : ""}`}
+function ItemActions({ item, m }: { item: PriorityItem; m: Monitor }) {
+  const { ref } = item;
+  if (ref.type === "email")
+    return (
+      <>
+        {ref.suggestion ? (
+          <button
+            className="primary sm"
+            onClick={() => void m.acceptSuggestion(ref.suggestion!)}
           >
-            {dateLabel(d.due || d.return_date)}
-          </span>
-          <span className={`tag ${d.priority === "alta" ? "priority" : ""}`}>
-            {d.priority === "alta"
-              ? "Prioridade"
-              : stages[d.stage as keyof typeof stages]}
-          </span>
-          <ChevronRight size={16} aria-hidden />
+            Criar demanda
+          </button>
+        ) : (
+          <button className="sm" onClick={() => m.emailToDemand(ref.email)}>
+            Revisar e criar
+          </button>
+        )}
+        <button className="ghost sm" onClick={() => m.setPage("E-mails")}>
+          Abrir e-mail
         </button>
-      ))}
-    </div>
+      </>
+    );
+  if (ref.type === "suggestion")
+    return (
+      <>
+        <button
+          className="primary sm"
+          onClick={() => void m.acceptSuggestion(ref.suggestion)}
+        >
+          Criar demanda
+        </button>
+        <button
+          className="ghost sm"
+          onClick={() => void m.dismissSuggestion(ref.suggestion)}
+        >
+          Descartar
+        </button>
+      </>
+    );
+  if (ref.type === "demand")
+    return (
+      <button className="sm" onClick={() => m.setDetail(ref.demand)}>
+        Abrir demanda
+      </button>
+    );
+  if (ref.type === "site")
+    return (
+      <button className="sm" onClick={() => m.setPage("Sites")}>
+        Ver site
+      </button>
+    );
+  return (
+    <button className="sm" onClick={() => m.setPage("Configurações")}>
+      Corrigir
+    </button>
+  );
+}
+
+function PriorityCenter({ m, sites }: { m: Monitor; sites: Site[] }) {
+  const now = Date.now();
+  const items = buildPriorities({
+    demands: m.visible,
+    emails: m.inbox,
+    suggestions: m.suggested,
+    accounts: m.accounts,
+    sites: m.preview ? [] : sites,
+    front: m.front,
+    today: today(),
+    now,
+  });
+  const waiting = awaitingMail(m.inbox).length;
+  const dueNow = items.some((i) => i.group === "hoje");
+  return (
+    <Panel
+      title="Central de prioridades"
+      action={
+        <button className="ghost sm" onClick={() => m.setPage("Demandas")}>
+          Ver demandas
+          <ArrowUpRight size={16} />
+        </button>
+      }
+    >
+      {items.length ? (
+        groupOrder.map((group) => {
+          const rows = items.filter((i) => i.group === group);
+          if (!rows.length) return null;
+          return (
+            <section
+              className="priority-group"
+              key={group}
+              aria-label={groupLabels[group]}
+            >
+              <h3>
+                {groupLabels[group]} <span className="badge">{rows.length}</span>
+              </h3>
+              {rows.map((item) => (
+                <div className="row" key={item.key}>
+                  <span className="row-body">
+                    <strong className="truncate">{item.title}</strong>
+                    <small className="truncate">
+                      {frontLabel(item.front_id)} ·{" "}
+                      {channelLabel(item.channel)}
+                      {item.since && ` · ${waitingLabel(item.since, now)}`}
+                      {item.reason && ` · ${item.reason}`}
+                    </small>
+                  </span>
+                  <ItemActions item={item} m={m} />
+                </div>
+              ))}
+            </section>
+          );
+        })
+      ) : (
+        <Empty icon={CircleCheck} text="Nada pede a sua atenção agora." />
+      )}
+      {!dueNow && (m.open.length > 0 || waiting > 0) && (
+        <p className="priority-note">
+          Nenhuma demanda vence hoje. Você ainda tem {m.open.length}{" "}
+          {m.open.length === 1 ? "demanda aberta" : "demandas abertas"} e{" "}
+          {waiting} {waiting === 1 ? "e-mail esperando" : "e-mails esperando"}{" "}
+          sua decisão.
+        </p>
+      )}
+    </Panel>
   );
 }
 
@@ -127,13 +225,9 @@ export function Overview({ m }: { m: Monitor }) {
   const selectedSites = sites.filter(
     (s) => s.enabled && (!m.front || s.front_id === m.front),
   );
-  const [tab, setTab] = useState<QueueTab>("Hoje");
   const hasMail = m.inbox.length > 0 || m.accounts.length > 0;
-  const actionable = m.inbox.filter(
-    (e) =>
-      !e.demand_id &&
-      ["acao", "importante"].includes(e.analysis?.importancia ?? ""),
-  );
+  const counts = mailCounts(m.inbox);
+  const actionable = awaitingMail(m.inbox);
   const followers = m.social.filter((p) => !m.front || p.front_id === m.front);
   const gained = followers.reduce(
     (sum, p) => sum + (p.followers_change ?? 0),
@@ -147,10 +241,10 @@ export function Overview({ m }: { m: Monitor }) {
       icon: Workflow,
     },
     {
-      label: "E-mails para agir",
+      label: "E-mails esperando você",
       value: hasMail ? actionable.length : "—",
       caption: hasMail
-        ? `${m.inbox.length} na caixa unificada`
+        ? `${counts.acao + counts.importante} importantes ou de ação · ${counts.comDemanda} já viraram demanda`
         : "Nenhuma conta conectada",
       icon: Mail,
     },
@@ -186,6 +280,7 @@ export function Overview({ m }: { m: Monitor }) {
   return (
     <>
       {m.connected && !m.preview && <FirstSteps m={m} />}
+      <PriorityCenter m={m} sites={sites} />
       <div className="metrics">
         {metrics.map(({ label, value, caption, icon: Icon }) => (
           <div className="metric" key={label}>
@@ -200,101 +295,6 @@ export function Overview({ m }: { m: Monitor }) {
           </div>
         ))}
       </div>
-      <Panel
-        title="Sua fila de trabalho"
-        action={
-          <button className="ghost sm" onClick={() => m.setPage("Demandas")}>
-            Ver todas
-            <ArrowUpRight size={16} />
-          </button>
-        }
-      >
-        <Tabs<QueueTab>
-          label="Fila de trabalho"
-          value={tab}
-          onChange={setTab}
-          items={[
-            { id: "Hoje", count: m.dueToday.length },
-            { id: "Todas", count: m.open.length },
-            { id: "Sugestões da IA", count: m.suggested.length },
-          ]}
-        />
-        {tab !== "Sugestões da IA" ? (
-          <DemandRows items={tab === "Hoje" ? m.dueToday : m.open} m={m} />
-        ) : m.suggested.length ? (
-          <div>
-            {m.suggested.map((s) => (
-              <div className="row" key={s.id}>
-                <span className="row-icon">
-                  <Sparkles size={18} aria-hidden />
-                </span>
-                <span className="row-body">
-                  <strong className="truncate">{s.title}</strong>
-                  <small className="truncate">
-                    {frontLabel(s.front_id)} · {senderName(s.contact)}
-                    {s.due && ` · prazo ${dateLabel(s.due)}`}
-                  </small>
-                </span>
-                <button
-                  className="primary sm"
-                  onClick={() => void m.acceptSuggestion(s)}
-                >
-                  Criar demanda
-                </button>
-                <button
-                  className="ghost sm"
-                  onClick={() => void m.dismissSuggestion(s)}
-                >
-                  Descartar
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Empty
-            icon={Sparkles}
-            text="Nenhuma sugestão no momento. Quando um e-mail pedir uma ação, ele aparece aqui para você aceitar ou descartar."
-          />
-        )}
-      </Panel>
-      <div className="grid-2">
-        <Panel title="E-mails → demandas" action={m.preview && sample}>
-          {actionable.length ? (
-            <div>
-              {actionable.slice(0, 5).map((e) => (
-                <div className="row" key={e.id}>
-                  <span className="row-icon">
-                    <Mail size={18} aria-hidden />
-                  </span>
-                  <span className="row-body">
-                    <strong className="truncate">{e.subject}</strong>
-                    <small className="truncate">
-                      {frontLabel(e.front_id)} · {senderName(e.sender)} ·{" "}
-                      {importanceLabels[e.analysis!.importancia]}
-                    </small>
-                  </span>
-                  <button className="sm" onClick={() => m.emailToDemand(e)}>
-                    <Plus size={16} />
-                    Demanda
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <Empty
-              icon={Mail}
-              text={
-                hasMail
-                  ? "Nenhum e-mail aguardando uma decisão sua."
-                  : "Conecte suas contas para ver aqui os e-mails que pedem ação."
-              }
-            />
-          )}
-          <button className="panel-foot" onClick={() => m.setPage("E-mails")}>
-            Abrir caixa unificada
-            <ArrowRight size={16} />
-          </button>
-        </Panel>
         <Panel title="Saúde dos sites" action={m.preview ? sample : undefined}>
           {m.preview ? (
             <div>
@@ -344,7 +344,6 @@ export function Overview({ m }: { m: Monitor }) {
             <ArrowRight size={16} />
           </button>
         </Panel>
-      </div>
       <Panel title="Redes sociais" action={m.preview ? sample : undefined}>
         <SocialTable m={m} />
       </Panel>

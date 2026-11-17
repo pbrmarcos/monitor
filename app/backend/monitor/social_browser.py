@@ -298,6 +298,7 @@ def read_dom(page, username, deadline):
     paths = list(dict.fromkeys(paths))[:12]
     if posts and not paths:
         result['detail'] += ' A lista de posts não foi disponibilizada nesta rodada.'
+    unread = 0
     for path in paths:
         if time.monotonic() >= deadline:
             result['detail'] += ' Tempo da rodada atingido; alguns posts não foram lidos.'
@@ -338,7 +339,10 @@ def read_dom(page, username, deadline):
             from playwright.sync_api import Error
             if not isinstance(error, Error):
                 raise
-            result['detail'] += ' Um ou mais posts não puderam ser lidos.'
+            unread += 1
+    if unread:
+        result['detail'] += (' Um post não pôde ser lido.' if unread == 1
+                             else f' {unread} posts não puderam ser lidos.')
     return result
 
 

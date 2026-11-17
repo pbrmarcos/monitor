@@ -25,7 +25,7 @@ const smallest = () =>
   );
 
 await shot("overview");
-await page.getByRole("tab", { name: /Sugestões da IA/ }).click();
+await page.getByText("Central de prioridades", { exact: true }).waitFor();
 await page.getByRole("button", { name: "Criar demanda", exact: true }).click();
 await page.getByText("Demanda criada.", { exact: true }).waitFor();
 await page.getByRole("button", { name: "Nova demanda", exact: true }).click();

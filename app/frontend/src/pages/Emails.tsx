@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { api, categoryLabels, Email, importanceLabels } from "../api";
+import { awaitingMail, waitingLabel } from "../priorities";
 import type { Monitor } from "../store";
 import { ReplyBox } from "./Reply";
 import {
@@ -143,8 +144,13 @@ export function Emails({ m }: { m: Monitor }) {
                   </div>
                   <span className="truncate">{e.subject}</span>
                   <div>
-                    <span className="caption">{frontLabel(e.front_id)}</span>
+                    <span className="caption">
+                      {frontLabel(e.front_id)}
+                      {awaitingMail([e]).length > 0 &&
+                        ` · aguardando você ${waitingLabel(e.date, Date.now())}`}
+                    </span>
                     <ImportanceTag email={e} />
+                    {e.demand_id && <span className="tag">Em demanda</span>}
                   </div>
                 </button>
               ))}
